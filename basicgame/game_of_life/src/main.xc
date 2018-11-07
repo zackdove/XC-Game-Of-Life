@@ -60,6 +60,47 @@ void DataInStream(char infname[], chanend c_out)
   return;
 }
 
+//WAIT function
+void waitMoment() {
+  timer tmr;
+  int waitTime;
+  tmr :> waitTime;                       //read current timer value
+  waitTime += 40000000;                  //set waitTime to 0.4s after value
+  tmr when timerafter(waitTime) :> void; //wait until waitTime is reached
+}
+
+void checkCellsAround(){
+
+}
+
+void doGameOfLife(){
+    int fertility;
+    uchar world[IMHT][IMWD];
+    uchar world2[IMHT][IMWD];
+    for( int y = 0; y < IMHT; y++ ) {   //go through all lines
+        for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
+            if (world[x][y+1] == 0xFF) fertility++;
+            if (world[x][y-1] == 0xFF) fertility++;
+            if (world[x+1][y] == 0xFF) fertility++;
+            if (world[x+1][y+1] == 0xFF) fertility++;
+            if (world[x+1][y-1] == 0xFF) fertility++;
+            if (world[x-1][y] == 0xFF) fertility++;
+            if (world[x-1][y+1] == 0xFF) fertility++;
+            if (world[x-1][y-1] == 0xFF) fertility++;
+            if (world[x][y] == 0xFF){ //alive
+                if (fertility < 2) //die
+                if (fertility == 2 || fertility == 3) //chill
+                if (fertility > 3) //die
+            } else if (world[x][y] == 0x00) { //dead
+                if (fertility == 3) //come alive
+            }
+
+        }
+    }
+
+}
+
+
 /////////////////////////////////////////////////////////////////////////////////////////
 //
 // Start your implementation by changing this function to implement the game of life
@@ -70,24 +111,24 @@ void DataInStream(char infname[], chanend c_out)
 void distributor(chanend c_in, chanend c_out, chanend fromAcc)
 {
   uchar val;
-
   //Starting up and wait for tilting of the xCore-200 Explorer
   printf( "ProcessImage: Start, size = %dx%d\n", IMHT, IMWD );
   printf( "Waiting for Board Tilt...\n" );
   fromAcc :> int value;
-
   //Read in and do something with your image values..
   //This just inverts every pixel, but you should
   //change the image according to the "Game of Life"
   printf( "Processing...\n" );
   for( int y = 0; y < IMHT; y++ ) {   //go through all lines
-    for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-      c_in :> val;                    //read the pixel value
-      c_out <: (uchar)( val ^ 0xFF ); //send some modified pixel out
-    }
+      for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
+          c_in :> val;                    //read the pixel value
+          //c_out <: (uchar)( val ^ 0xFF ); //send some modified pixel out
+      }
   }
   printf( "\nOne processing round completed...\n" );
+  waitMoment();
 }
+
 
 /////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -177,6 +218,7 @@ i2c_master_if i2c[1];               //interface to orientation
 char infname[] = "test.pgm";     //put your input image path here
 char outfname[] = "testout.pgm"; //put your output image path here
 chan c_inIO, c_outIO, c_control;    //extend your channel definitions here
+chan distributorToWorker;
 
 par {
     i2c_master(i2c, 1, p_scl, p_sda, 10);   //server thread providing orientation data
