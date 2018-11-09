@@ -135,30 +135,20 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc)
 // Write pixel stream from channel c_in to PGM image file
 //
 /////////////////////////////////////////////////////////////////////////////////////////
-void DataOutStream(char outfname[], chanend c_in)
+void DataOutStream(chanend c_in)
 {
   int res;
   uchar line[ IMWD ];
-
-  //Open PGM file
-  printf( "DataOutStream: Start...\n" );
-  res = _openoutpgm( outfname, IMWD, IMHT );
-  if( res ) {
-    printf( "DataOutStream: Error opening %s\n.", outfname );
-    return;
-  }
 
   //Compile each line of the image and write the image line-by-line
   for( int y = 0; y < IMHT; y++ ) {
     for( int x = 0; x < IMWD; x++ ) {
       c_in :> line[ x ];
     }
-    _writeoutline( line, IMWD );
+    printf( "-%4.1d ", line[ x ] );
     printf( "DataOutStream: Line written...\n" );
   }
 
-  //Close the PGM image
-  _closeoutpgm();
   printf( "DataOutStream: Done...\n" );
   return;
 }
@@ -224,7 +214,7 @@ par {
     i2c_master(i2c, 1, p_scl, p_sda, 10);   //server thread providing orientation data
     orientation(i2c[0],c_control);        //client thread reading orientation data
     DataInStream(infname, c_inIO);          //thread to read in a PGM image
-    DataOutStream(outfname, c_outIO);       //thread to write out a PGM image
+    DataOutStream(c_outIO);       //thread to write out a PGM image
     distributor(c_inIO, c_outIO, c_control);//thread to coordinate work on image
   }
 
