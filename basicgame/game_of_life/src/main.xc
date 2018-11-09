@@ -89,6 +89,7 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, uchar world[IMHT]
   printf( "ProcessImage: Start, size = %dx%d\n", IMHT, IMWD );
   printf( "Waiting for Board Tilt...\n" );
   fromAcc :> int value;
+  int fertility;
   //Read in and do something with your image values..
   //This just inverts every pixel, but you should
   //change the image according to the "Game of Life"
@@ -99,33 +100,37 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, uchar world[IMHT]
       }
   }
   uchar world2[IMHT][IMWD];
-  int fertility;
-     for( int y = 0; y < IMHT; y++ ) {   //go through all lines
-         for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-             fertility = 0;
-             if (world[x][modulo(y+1,IMHT)] == 0xFF) fertility++;
-             if (world[x][modulo(y-1,IMHT)] == 0xFF) fertility++;
-             if (world[modulo(x+1,IMWD)][y] == 0xFF) fertility++;
-             if (world[modulo(x+1,IMWD)][modulo(y+1,IMHT)] == 0xFF) fertility++;
-             if (world[modulo(x+1,IMWD)][modulo(y-1,IMHT)] == 0xFF) fertility++;
-             if (world[modulo(x-1,IMWD)][y] == 0xFF) fertility++;
-             if (world[modulo(x-1,IMWD)][modulo(y+1,IMHT)] == 0xFF) fertility++;
-             if (world[modulo(x-1,IMWD)][modulo(y-1,IMHT)] == 0xFF) fertility++;
-             if (world[x][y] == 0xFF){ //alive
-                 if (fertility < 2) world2[x][y] = 0x00; //die
-                 else if (fertility == 2 || fertility == 3) world2[x][y] = 0xFF; //chill
-                 else if (fertility > 3) world2[x][y] = 0x00; //die
-                 else world2[x][y] = world[x][y];
-             } else if (world[x][y] == 0x00) { //dead
-                 if (fertility == 3) world2[x][y] = 0xFF;//come alive
-                 else world2[x][y] = world[x][y];
-             }
-         }
-     }
-  for( int y = 0; y < IMHT; y++ ) {   //go through all lines
-      for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-          c_out <: (uchar)( world2[y][x]); //send some modified pixel out
+  for (int z = 0; z<10; z++){
+      for( int y = 0; y < IMHT; y++ ) {   //go through all lines
+          for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
+              fertility = 0;
+              if (world[x][modulo(y+1,IMHT)] == 0xFF) fertility++;
+              if (world[x][modulo(y-1,IMHT)] == 0xFF) fertility++;
+              if (world[modulo(x+1,IMWD)][y] == 0xFF) fertility++;
+              if (world[modulo(x+1,IMWD)][modulo(y+1,IMHT)] == 0xFF) fertility++;
+              if (world[modulo(x+1,IMWD)][modulo(y-1,IMHT)] == 0xFF) fertility++;
+              if (world[modulo(x-1,IMWD)][y] == 0xFF) fertility++;
+              if (world[modulo(x-1,IMWD)][modulo(y+1,IMHT)] == 0xFF) fertility++;
+              if (world[modulo(x-1,IMWD)][modulo(y-1,IMHT)] == 0xFF) fertility++;
+              if (world[x][y] == 0xFF){ //alive
+                  if (fertility < 2) world2[x][y] = 0x00; //die
+                  else if (fertility == 2 || fertility == 3) world2[x][y] = 0xFF; //chill
+                  else if (fertility > 3) world2[x][y] = 0x00; //die
+                  else world2[x][y] = world[x][y];
+              } else if (world[x][y] == 0x00) { //dead
+                  if (fertility == 3) world2[x][y] = 0xFF;//come alive
+                  else world2[x][y] = world[x][y];
+              }
+          }
       }
+      //copy world2 to world
+      for( int y = 0; y < IMHT; y++ ) {   //go through all lines
+            for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
+                world[x][y] = world2[x][y];
+                c_out <: (uchar)( world[y][x]); //send some modified pixel out
+            }
+        }
+      waitMoment();
   }
   printf( "\nOne processing round completed...\n" );
   waitMoment();
@@ -139,19 +144,19 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, uchar world[IMHT]
 /////////////////////////////////////////////////////////////////////////////////////////
 void DataOutStream(chanend c_in)
 {
-  int res;
   uchar line[ IMWD ];
 
   //Compile each line of the image and write the image line-by-line
-  for( int y = 0; y < IMHT; y++ ) {
-    for(int x = 0; x < IMWD; x++ ) {
-      c_in :> line[ x ];
-      printf( "-%4.1d ", line[ x ] );
-    }
+  while(1){
+      for( int y = 0; y < IMHT; y++ ) {
+        for(int x = 0; x < IMWD; x++ ) {
+          c_in :> line[ x ];
+          printf( "-%4.1d ", line[ x ] );
+        }
 
-    printf( "DataOutStream: Line written...\n" );
+        printf( "DataOutStream: Line written...\n" );
+      }
   }
-
   printf( "DataOutStream: Done...\n" );
   return;
 }
@@ -209,9 +214,7 @@ int main(void) {
 i2c_master_if i2c[1];               //interface to orientation
 
 char infname[] = "test.pgm";     //put your input image path here
-char outfname[] = "testout.pgm"; //put your output image path here
 chan c_inIO, c_outIO, c_control;    //extend your channel definitions here
-chan distributorToWorker;
 uchar world[IMHT][IMWD];
 printf("mod thing: %i /n ", modulo(-1,64));
 par {
