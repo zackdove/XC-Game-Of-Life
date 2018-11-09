@@ -1,3 +1,0 @@
-<preCompilationAnalysis file="/Users/zack/xmos_workspace/gameoflife/basicgame/lib_xassert/src/xassert.xc">
-<fDef name="xassert_msg" global="true" noreturn="false" doNotSpecialize="false" numParams="1"/>
-</preCompilationAnalysis>
