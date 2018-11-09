@@ -72,34 +72,9 @@ void waitMoment() {
 void checkCellsAround(){
 
 }
-
-/*void doGameOfLife(){
-    int fertility;
-    uchar world[IMHT][IMWD];
-    uchar world2[IMHT][IMWD];
-    for( int y = 0; y < IMHT; y++ ) {   //go through all lines
-        for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-            if (world[x][y+1] == 0xFF) fertility++;
-            if (world[x][y-1] == 0xFF) fertility++;
-            if (world[x+1][y] == 0xFF) fertility++;
-            if (world[x+1][y+1] == 0xFF) fertility++;
-            if (world[x+1][y-1] == 0xFF) fertility++;
-            if (world[x-1][y] == 0xFF) fertility++;
-            if (world[x-1][y+1] == 0xFF) fertility++;
-            if (world[x-1][y-1] == 0xFF) fertility++;
-            if (world[x][y] == 0xFF){ //alive
-                if (fertility < 2) //die
-                if (fertility == 2 || fertility == 3) //chill
-                if (fertility > 3) //die
-            } else if (world[x][y] == 0x00) { //dead
-                if (fertility == 3) //come alive
-            }
-
-        }
-    }
-
-}*/
-
+int modulo(int x , int N){
+    return(x % N + N) %N;
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -110,7 +85,6 @@ void checkCellsAround(){
 /////////////////////////////////////////////////////////////////////////////////////////
 void distributor(chanend c_in, chanend c_out, chanend fromAcc, uchar world[IMHT][IMWD])
 {
-  uchar val;
   //Starting up and wait for tilting of the xCore-200 Explorer
   printf( "ProcessImage: Start, size = %dx%d\n", IMHT, IMWD );
   printf( "Waiting for Board Tilt...\n" );
@@ -121,12 +95,36 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, uchar world[IMHT]
   printf( "Processing...\n" );
   for( int y = 0; y < IMHT; y++ ) {   //go through all lines
       for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-          c_in :> val;                    //read the pixel value
+          c_in :> world[y][x];                    //read the pixel value
       }
   }
+  uchar world2[IMHT][IMWD];
+  int fertility;
+     for( int y = 0; y < IMHT; y++ ) {   //go through all lines
+         for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
+             fertility = 0;
+             if (world[x][modulo(y+1,IMHT)] == 0xFF) fertility++;
+             if (world[x][modulo(y-1,IMHT)] == 0xFF) fertility++;
+             if (world[modulo(x+1,IMWD)][y] == 0xFF) fertility++;
+             if (world[modulo(x+1,IMWD)][modulo(y+1,IMHT)] == 0xFF) fertility++;
+             if (world[modulo(x+1,IMWD)][modulo(y-1,IMHT)] == 0xFF) fertility++;
+             if (world[modulo(x-1,IMWD)][y] == 0xFF) fertility++;
+             if (world[modulo(x-1,IMWD)][modulo(y+1,IMHT)] == 0xFF) fertility++;
+             if (world[modulo(x-1,IMWD)][modulo(y-1,IMHT)] == 0xFF) fertility++;
+             if (world[x][y] == 0xFF){ //alive
+                 if (fertility < 2) world2[x][y] = 0x00; //die
+                 else if (fertility == 2 || fertility == 3) world2[x][y] = 0xFF; //chill
+                 else if (fertility > 3) world2[x][y] = 0x00; //die
+                 else world2[x][y] = world[x][y];
+             } else if (world[x][y] == 0x00) { //dead
+                 if (fertility == 3) world2[x][y] = 0xFF;//come alive
+                 else world2[x][y] = world[x][y];
+             }
+         }
+     }
   for( int y = 0; y < IMHT; y++ ) {   //go through all lines
       for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-          c_out <: (uchar)( val ^ 0xFF ); //send some modified pixel out
+          c_out <: (uchar)( world2[y][x]); //send some modified pixel out
       }
   }
   printf( "\nOne processing round completed...\n" );
@@ -215,7 +213,7 @@ char outfname[] = "testout.pgm"; //put your output image path here
 chan c_inIO, c_outIO, c_control;    //extend your channel definitions here
 chan distributorToWorker;
 uchar world[IMHT][IMWD];
-
+printf("mod thing: %i /n ", modulo(-1,64));
 par {
     i2c_master(i2c, 1, p_scl, p_sda, 10);   //server thread providing orientation data
     orientation(i2c[0],c_control);        //client thread reading orientation data
