@@ -10,6 +10,8 @@
 #define  IMHT 16                  //image height
 #define  IMWD 16                  //image width
 
+int workers = 4;
+
 typedef unsigned char uchar;      //using uchar as shorthand
 
 port p_scl = XS1_PORT_1E;         //interface ports to orientation
@@ -48,7 +50,7 @@ void DataInStream(char infname[], chanend c_out)
   for( int y = 0; y < IMHT; y++ ) {
     _readinline( line, IMWD );
     for( int x = 0; x < IMWD; x++ ) {
-      c_out <: line[ x ];
+      c_out <: line[x];
       printf( "-%4.1d ", line[ x ] ); //show image values
     }
     printf( "\n" );
@@ -76,6 +78,39 @@ int modulo(int x , int N){
     return(x % N + N) %N;
 }
 
+void worker(int workerID, channend fromDistributor){
+    segHeight = (IMHHT/4)+2;
+    uchar worldSeg[IMWD][segHeight];
+    for (int y=0; y<segHeight; y++){
+        for (int x = 0; x<IMWD; x++){
+            fromDistributor :> worldSeg[x][y];
+        }
+    }
+    for (int y=0; y<segHeight; y++){
+        for (int x=0; x<IMWD; x++){
+            fertility=0;
+            fertility = 0;
+            if (world[x][modulo(y+1,segHeight)] == 0xFF) fertility++;
+            if (world[x][modulo(y-1,segHeight)] == 0xFF) fertility++;
+            if (world[modulo(x+1,IMWD)][y] == 0xFF) fertility++;
+            if (world[modulo(x+1,IMWD)][modulo(y+1,segHeight)] == 0xFF) fertility++;
+            if (world[modulo(x+1,IMWD)][modulo(y-1,segHeight)] == 0xFF) fertility++;
+            if (world[modulo(x-1,IMWD)][y] == 0xFF) fertility++;
+            if (world[modulo(x-1,IMWD)][modulo(y+1,segHeight)] == 0xFF) fertility++;
+            if (world[modulo(x-1,IMWD)][modulo(y-1,segHeight)] == 0xFF) fertility++;
+            if (world[x][y] == 0xFF){ //alive
+                if (fertility < 2) world2[x][y] = 0x00; //die
+                else if (fertility == 2 || fertility == 3) world2[x][y] = 0xFF; //chill
+                else if (fertility > 3) world2[x][y] = 0x00; //die
+                else world2[x][y] = world[x][y];
+            } else if (world[x][y] == 0x00) { //dead
+                if (fertility == 3) world2[x][y] = 0xFF;//come alive
+                else world2[x][y] = world[x][y];
+            }
+        }
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////
 //
 // Start your implementation by changing this function to implement the game of life
@@ -83,44 +118,28 @@ int modulo(int x , int N){
 // Currently the function just inverts the image
 //
 /////////////////////////////////////////////////////////////////////////////////////////
-void distributor(chanend c_in, chanend c_out, chanend fromAcc, uchar world[IMHT][IMWD])
+void distributor(chanend c_in, chanend c_out, chanend fromAcc, channend toWorker)
 {
   //Starting up and wait for tilting of the xCore-200 Explorer
   printf( "ProcessImage: Start, size = %dx%d\n", IMHT, IMWD );
   printf( "Waiting for Board Tilt...\n" );
   fromAcc :> int value;
   int fertility;
+  uchar world[IMHT][IMWD];
   //Read in and do something with your image values..
   //This just inverts every pixel, but you should
   //change the image according to the "Game of Life"
   printf( "Processing...\n" );
-  for( int y = 0; y < IMHT; y++ ) {   //go through all lines
+  for( int y = 0; y < IMHT; y++ ) {     //go through all lines
       for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-          c_in :> world[y][x];                    //read the pixel value
+          c_in :> world[y][x];          //read the pixel value
       }
   }
   uchar world2[IMHT][IMWD];
-  for (int z = 0; z<10; z++){
-      for( int y = 0; y < IMHT; y++ ) {   //go through all lines
+  for (int iteration = 0; iteration<10; iteration++){
+      for( int y = 0; y < IMHT; y++) {   //go through all lines
           for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-              fertility = 0;
-              if (world[x][modulo(y+1,IMHT)] == 0xFF) fertility++;
-              if (world[x][modulo(y-1,IMHT)] == 0xFF) fertility++;
-              if (world[modulo(x+1,IMWD)][y] == 0xFF) fertility++;
-              if (world[modulo(x+1,IMWD)][modulo(y+1,IMHT)] == 0xFF) fertility++;
-              if (world[modulo(x+1,IMWD)][modulo(y-1,IMHT)] == 0xFF) fertility++;
-              if (world[modulo(x-1,IMWD)][y] == 0xFF) fertility++;
-              if (world[modulo(x-1,IMWD)][modulo(y+1,IMHT)] == 0xFF) fertility++;
-              if (world[modulo(x-1,IMWD)][modulo(y-1,IMHT)] == 0xFF) fertility++;
-              if (world[x][y] == 0xFF){ //alive
-                  if (fertility < 2) world2[x][y] = 0x00; //die
-                  else if (fertility == 2 || fertility == 3) world2[x][y] = 0xFF; //chill
-                  else if (fertility > 3) world2[x][y] = 0x00; //die
-                  else world2[x][y] = world[x][y];
-              } else if (world[x][y] == 0x00) { //dead
-                  if (fertility == 3) world2[x][y] = 0xFF;//come alive
-                  else world2[x][y] = world[x][y];
-              }
+              toWorker[i] <: world[x][y];
           }
       }
       //copy world2 to world
@@ -144,13 +163,13 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, uchar world[IMHT]
 /////////////////////////////////////////////////////////////////////////////////////////
 void DataOutStream(chanend c_in)
 {
-  uchar line[ IMWD ];
+  uchar line[IMWD];
 
   //Compile each line of the image and write the image line-by-line
   while(1){
       for( int y = 0; y < IMHT; y++ ) {
         for(int x = 0; x < IMWD; x++ ) {
-          c_in :> line[ x ];
+          c_in :> line[x];
           printf( "-%4.1d ", line[ x ] );
         }
 
@@ -215,14 +234,18 @@ i2c_master_if i2c[1];               //interface to orientation
 
 char infname[] = "test.pgm";     //put your input image path here
 chan c_inIO, c_outIO, c_control;    //extend your channel definitions here
-uchar world[IMHT][IMWD];
+chan c_workerToDist[workers];
+uchar world[IMWD][IMHT];
 printf("mod thing: %i /n ", modulo(-1,64));
 par {
     i2c_master(i2c, 1, p_scl, p_sda, 10);   //server thread providing orientation data
     orientation(i2c[0],c_control);        //client thread reading orientation data
     DataInStream(infname, c_inIO);          //thread to read in a PGM image
     DataOutStream(c_outIO);       //thread to write out a PGM image
-    distributor(c_inIO, c_outIO, c_control,world);//thread to coordinate work on image
+    distributor(c_inIO, c_outIO, c_control);//thread to coordinate work on image
+    for (int i=0; i<4; i++){
+        worker(i, c_workerToDist);
+    }
   }
 
   return 0;
