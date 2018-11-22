@@ -156,12 +156,12 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
   for (int iteration = 0; iteration<10; iteration++){
       printf("2\n");
       for (int i = 0; i<workers; i++){
-          int min = modulo((i*IMHT/workers)-1,IMHT);
-          int max = modulo(1+(i+1)*IMHT/workers,IMHT);
+          int min =(i*IMHT/workers)-1;
+          int max =1+(i+1)*IMHT/workers;
           printf("i = %i , min = %i, max = %i\n",i,min,max );
           for (int y= min; y< max; y++){
               for (int x = 0; x < IMWD; x++){
-                  toWorker[i] <: world[x][y];
+                  toWorker[i] <: world[x][modulo(y,IMHT)];
               }
           }
       }
