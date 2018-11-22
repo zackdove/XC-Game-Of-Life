@@ -91,17 +91,17 @@ void worker(int workerID, chanend fromDistributor){
             fromDistributor :> worldSeg[x][y];
         }
     }
-    for (int y=0; y<segHeight; y++){
+    for (int y=1; y<segHeight-1; y++){
         for (int x=0; x<IMWD; x++){
             int fertility=0;
-            if (worldSeg[x][modulo(y+1,segHeight)] == 0xFF) fertility++;
-            if (worldSeg[x][modulo(y-1,segHeight)] == 0xFF) fertility++;
+            if (worldSeg[x][y+1] == 0xFF) fertility++;
+            if (worldSeg[x][y-1] == 0xFF) fertility++;
             if (worldSeg[modulo(x+1,IMWD)][y] == 0xFF) fertility++;
-            if (worldSeg[modulo(x+1,IMWD)][modulo(y+1,segHeight)] == 0xFF) fertility++;
-            if (worldSeg[modulo(x+1,IMWD)][modulo(y-1,segHeight)] == 0xFF) fertility++;
+            if (worldSeg[modulo(x+1,IMWD)][y+1] == 0xFF) fertility++;
+            if (worldSeg[modulo(x+1,IMWD)][y-1] == 0xFF) fertility++;
             if (worldSeg[modulo(x-1,IMWD)][y] == 0xFF) fertility++;
-            if (worldSeg[modulo(x-1,IMWD)][modulo(y+1,segHeight)] == 0xFF) fertility++;
-            if (worldSeg[modulo(x-1,IMWD)][modulo(y-1,segHeight)] == 0xFF) fertility++;
+            if (worldSeg[modulo(x-1,IMWD)][y+1] == 0xFF) fertility++;
+            if (worldSeg[modulo(x-1,IMWD)][y-1] == 0xFF) fertility++;
             if (worldSeg[x][y] == 0xFF){ //alive
                 if (fertility < 2) worldSeg2[x][y] = 0x00; //die
                 else if (fertility == 2 || fertility == 3) worldSeg2[x][y] = 0xFF; //chill
@@ -113,6 +113,14 @@ void worker(int workerID, chanend fromDistributor){
             }
         }
     }
+
+    for (int y=1; y<segHeigh-1; y++){
+        for (int x = 0; x<IMWD; x++){
+            fromDistributor <: worldSeg2[x][y];
+        }
+    }
+
+
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -133,7 +141,6 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
   //This just inverts every pixel, but you should
   //change the image according to the "Game of Life"
   printf( "Processing...\n" );
-
   for( int y = 0; y < IMHT; y++ ) {     //go through all lines
       for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
           c_in :> world[y][x];          //read the pixel value
@@ -161,13 +168,38 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
               toWorker[3] <: world[x][y];
           }
       }
+/////////////////////
+      for( int y = 0; y < IMHT/workers; y++) {   //go through all lines
+          for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
+              toWorker[0] :> world2[x][y];
+          }
+      }
+      for( int y = IMHT/workers; y < (2*IMHT/workers); y++) {   //go through all lines
+          for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
+              toWorker[1] :> world2[x][y];
+          }
+      }
+      for( int y = (2*IMHT/workers); y < (3*IMHT/workers); y++) {   //go through all lines
+          for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
+              toWorker[2] :> world2[x][y];
+          }
+      }
+      for( int y = (3*IMHT/workers); y < (4*IMHT/workers); y++) {   //go through all lines
+          for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
+              toWorker[3] :> world2[x][y];
+          }
+      }
+ //////////////////
       //copy world2 to world
       for( int y = 0; y < IMHT; y++ ) {   //go through all lines
             for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
                 world[x][y] = world2[x][y];
-                c_out <: (uchar)( world[y][x]); //send some modified pixel out
+                c_out <: (uchar)( world[y][x]);
             }
-        }
+      }
+
+
+
       waitMoment();
   }
   printf( "\nOne processing round completed...\n" );
