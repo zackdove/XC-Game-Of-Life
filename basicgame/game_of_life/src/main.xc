@@ -114,7 +114,7 @@ void worker(int workerID, chanend fromDistributor){
         }
     }
 
-    for (int y=1; y<segHeigh-1; y++){
+    for (int y=1; y<segHeight-1; y++){
         for (int x = 0; x<IMWD; x++){
             fromDistributor <: worldSeg2[x][y];
         }
