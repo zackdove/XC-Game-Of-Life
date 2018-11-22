@@ -307,7 +307,7 @@ par {
     DataInStream(infname, c_inIO);          //thread to read in a PGM image
     DataOutStream(c_outIO);       //thread to write out a PGM image
     distributor(c_inIO, c_outIO, c_control, c_workerToDist);//thread to coordinate work on image
-    for (int i=0; i<4; i++){
+    par (int i=0; i<4; i++){
         worker(i, c_workerToDist[i]);
     }
   }
