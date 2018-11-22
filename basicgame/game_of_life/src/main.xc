@@ -153,56 +153,23 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
   uchar world2[IMHT][IMWD];
   for (int iteration = 0; iteration<10; iteration++){
       printf("2\n");
-      for( int y = modulo(-1, IMHT); y < 1+(IMHT/workers); y++) {   //go through all lines
-          for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-              toWorker[0] <: world[x][y];
-          }
-      }
-      printf("3\n");
-      for( int y = (IMHT/workers)-1; y < 1+(2*IMHT/workers); y++) {   //go through all lines
-          for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-              toWorker[1] <: world[x][y];
-          }
-      }
-      printf("4\n");
-      for( int y = (2*IMHT/workers)-1; y < 1+(3*IMHT/workers); y++) {   //go through all lines
-          for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-              toWorker[2] <: world[x][y];
-          }
-      }
-      printf("5\n");
-      for( int y = (3*IMHT/workers)-1; y < modulo(1+(4*IMHT/workers),IMHT); y++) {   //go through all lines
-          for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-              toWorker[3] <: world[x][y];
+      par (int i = 0; i<workers; i++){
+          for (int y=modulo((i*IMHT/workers)-1,IMHT); y<modulo(1+(i+1)*IMHT/workers,IMHT); y++){
+              for (int x = 0; x < IMWD; x++){
+                  toWorker[i] <: world[x][y];
+              }
           }
       }
 /////////////////////
-      printf("6\n");
-      for( int y = 0; y < IMHT/workers; y++) {   //go through all lines
-          for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-              toWorker[0] :> world2[x][y];
-          }
-      }
-      printf("7\n");
-      for( int y = IMHT/workers; y < (2*IMHT/workers); y++) {   //go through all lines
-          for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-              toWorker[1] :> world2[x][y];
-          }
-      }
-      printf("7\n");
-      for( int y = (2*IMHT/workers); y < (3*IMHT/workers); y++) {   //go through all lines
-          for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-              toWorker[2] :> world2[x][y];
-          }
-      }
-      printf("8\n");
-      for( int y = (3*IMHT/workers); y < (4*IMHT/workers); y++) {   //go through all lines
-          for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-              toWorker[3] :> world2[x][y];
+      par (int i = 0; i<4; i++){
+          for (int y = i*IMHT/workers; y<(i+1)*IMHT/workers; y++){
+              for (int x = 0; x < IMWD; x++){
+                  toWorker[i] :> world2[x][y];
+              }
           }
       }
       printf("9\n");
- //////////////////
+ ///////////////////
       //copy world2 to world
       for( int y = 0; y < IMHT; y++ ) {   //go through all lines
             for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
