@@ -86,6 +86,7 @@ int modulo(int x , int N){
 void worker(int workerID, chanend fromDistributor){
     uchar worldSeg[IMWD][segHeight];
     uchar worldSeg2[IMWD][segHeight];
+    printf("workerID%i\n",workerID);
     printf("a\n");
 
     for (int y=0; y<segHeight; y++){
@@ -154,13 +155,17 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
   uchar world2[IMHT][IMWD];
   for (int iteration = 0; iteration<10; iteration++){
       printf("2\n");
-      par (int i = 0; i<workers; i++){
-          for (int y=modulo((i*IMHT/workers)-1,IMHT); y<modulo(1+(i+1)*IMHT/workers,IMHT); y++){
+      for (int i = 0; i<workers; i++){
+          int min = modulo((i*IMHT/workers)-1,IMHT);
+          int max = modulo(1+(i+1)*IMHT/workers,IMHT);
+          printf("i = %i , min = %i, max = %i\n",i,min,max );
+          for (int y= min; y< max; y++){
               for (int x = 0; x < IMWD; x++){
                   toWorker[i] <: world[x][y];
               }
           }
       }
+      printf("3\n");
 /////////////////////
       for (int i = 0; i<workers; i++){
           for (int y = i*IMHT/workers; y<(i+1)*IMHT/workers; y++){
