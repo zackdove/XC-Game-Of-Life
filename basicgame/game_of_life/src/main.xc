@@ -18,8 +18,8 @@
 
 typedef unsigned char uchar;      //using uchar as shorthand
 
-port p_scl = XS1_PORT_1E;         //interface ports to orientation
-port p_sda = XS1_PORT_1F;
+on tile[0] : port p_scl = XS1_PORT_1E;         //interface ports to orientation
+on tile[0] : port p_sda = XS1_PORT_1F;
 
 #define FXOS8700EQ_I2C_ADDR 0x1E  //register addresses for orientation
 #define FXOS8700EQ_XYZ_DATA_CFG_REG 0x0E
@@ -37,8 +37,9 @@ port p_sda = XS1_PORT_1F;
 // Read Image from PGM file from path infname[] to channel c_out
 //
 /////////////////////////////////////////////////////////////////////////////////////////
-void DataInStream(char infname[], chanend c_out)
+void DataInStream( chanend c_out)
 {
+  char infname[] = "test.pgm";
   int res;
   uchar line[ IMWD ];
   printf( "DataInStream: Start...\n" );
@@ -146,7 +147,7 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
   printf( "Processing...\n" );
   for( int y = 0; y < IMHT; y++ ) {     //go through all lines
       for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-          c_in :> world[y][x];          //read the pixel value
+          c_in :> world[x][y];          //read the pixel value
       }
   }
   printf("1\n");
@@ -161,7 +162,7 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
           }
       }
 /////////////////////
-      par (int i = 0; i<4; i++){
+      for (int i = 0; i<workers; i++){
           for (int y = i*IMHT/workers; y<(i+1)*IMHT/workers; y++){
               for (int x = 0; x < IMWD; x++){
                   toWorker[i] :> world2[x][y];
@@ -263,19 +264,18 @@ int main(void) {
 
 i2c_master_if i2c[1];               //interface to orientation
 
-char infname[] = "test.pgm";     //put your input image path here
+     //put your input image path here
 chan c_inIO, c_outIO, c_control;    //extend your channel definitions here
 chan c_workerToDist[workers];
-uchar world[IMWD][IMHT];
-printf("mod thing: %i /n ", modulo(-1,64));
+
 par {
-    i2c_master(i2c, 1, p_scl, p_sda, 10);   //server thread providing orientation data
-    orientation(i2c[0],c_control);        //client thread reading orientation data
-    DataInStream(infname, c_inIO);          //thread to read in a PGM image
-    DataOutStream(c_outIO);       //thread to write out a PGM image
-    distributor(c_inIO, c_outIO, c_control, c_workerToDist);//thread to coordinate work on image
+    on tile[0] : i2c_master(i2c, 1, p_scl, p_sda, 10);   //server thread providing orientation data
+    on tile[0] : orientation(i2c[0],c_control);        //client thread reading orientation data
+    on tile[0] : DataInStream(c_inIO);          //thread to read in a PGM image
+    on tile[0] : DataOutStream(c_outIO);       //thread to write out a PGM image
+    on tile[0] : distributor(c_inIO, c_outIO, c_control, c_workerToDist);//thread to coordinate work on image
     par (int i=0; i<4; i++){
-        worker(i, c_workerToDist[i]);
+        on tile[1] : worker(i, c_workerToDist[i]);
     }
   }
 
