@@ -130,6 +130,7 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, channend toWorker
   //This just inverts every pixel, but you should
   //change the image according to the "Game of Life"
   printf( "Processing...\n" );
+
   for( int y = 0; y < IMHT; y++ ) {     //go through all lines
       for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
           c_in :> world[y][x];          //read the pixel value
@@ -137,7 +138,22 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, channend toWorker
   }
   uchar world2[IMHT][IMWD];
   for (int iteration = 0; iteration<10; iteration++){
-      for( int y = 0; y < IMHT; y++) {   //go through all lines
+      for( int y = modulo(-1, IMHT); y < 1+(IMHT/workers); y++) {   //go through all lines
+          for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
+              toWorker[i] <: world[x][y];
+          }
+      }
+      for( int y = (IMHT/workers)-1; y < 1+(2*IMHT/workers); y++) {   //go through all lines
+          for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
+              toWorker[i] <: world[x][y];
+          }
+      }
+      for( int y = (2*IMHT/workers)-1; y < 1+(3*IMHT/workers); y++) {   //go through all lines
+          for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
+              toWorker[i] <: world[x][y];
+          }
+      }
+      for( int y = (3*IMHT/workers)-1; y < modulo(1+(4*IMHT/workers)); y++) {   //go through all lines
           for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
               toWorker[i] <: world[x][y];
           }
