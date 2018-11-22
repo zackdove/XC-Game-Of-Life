@@ -87,44 +87,44 @@ void worker(int workerID, chanend fromDistributor){
     uchar worldSeg[IMWD][segHeight];
     uchar worldSeg2[IMWD][segHeight];
     printf("workerID%i\n",workerID);
-    printf("a\n");
-
-    for (int y=0; y<segHeight; y++){
-        for (int x = 0; x<IMWD; x++){
-            fromDistributor :> worldSeg[x][y];
-        }
-    }
-    printf("b\n");
-    for (int y=1; y<segHeight-1; y++){
-        for (int x=0; x<IMWD; x++){
-            int fertility=0;
-            if (worldSeg[x][y+1] == 0xFF) fertility++;
-            if (worldSeg[x][y-1] == 0xFF) fertility++;
-            if (worldSeg[modulo(x+1,IMWD)][y] == 0xFF) fertility++;
-            if (worldSeg[modulo(x+1,IMWD)][y+1] == 0xFF) fertility++;
-            if (worldSeg[modulo(x+1,IMWD)][y-1] == 0xFF) fertility++;
-            if (worldSeg[modulo(x-1,IMWD)][y] == 0xFF) fertility++;
-            if (worldSeg[modulo(x-1,IMWD)][y+1] == 0xFF) fertility++;
-            if (worldSeg[modulo(x-1,IMWD)][y-1] == 0xFF) fertility++;
-            if (worldSeg[x][y] == 0xFF){ //alive
-                if (fertility < 2) worldSeg2[x][y] = 0x00; //die
-                else if (fertility == 2 || fertility == 3) worldSeg2[x][y] = 0xFF; //chill
-                else if (fertility > 3) worldSeg2[x][y] = 0x00; //die
-                else worldSeg2[x][y] = worldSeg[x][y];
-            } else if (worldSeg[x][y] == 0x00) { //dead
-                if (fertility == 3) worldSeg2[x][y] = 0xFF;//come alive
-                else worldSeg2[x][y] = worldSeg[x][y];
+    while(1){
+        printf("a\n");
+        for (int y=0; y<segHeight; y++){
+            for (int x = 0; x<IMWD; x++){
+                fromDistributor :> worldSeg[x][y];
             }
         }
-    }
-    printf("c\n");
-    for (int y=1; y<segHeight-1; y++){
-        for (int x = 0; x<IMWD; x++){
-            fromDistributor <: worldSeg2[x][y];
+        printf("b\n");
+        for (int y=1; y<segHeight-1; y++){
+            for (int x=0; x<IMWD; x++){
+                int fertility=0;
+                if (worldSeg[x][y+1] == 0xFF) fertility++;
+                if (worldSeg[x][y-1] == 0xFF) fertility++;
+                if (worldSeg[modulo(x+1,IMWD)][y] == 0xFF) fertility++;
+                if (worldSeg[modulo(x+1,IMWD)][y+1] == 0xFF) fertility++;
+                if (worldSeg[modulo(x+1,IMWD)][y-1] == 0xFF) fertility++;
+                if (worldSeg[modulo(x-1,IMWD)][y] == 0xFF) fertility++;
+                if (worldSeg[modulo(x-1,IMWD)][y+1] == 0xFF) fertility++;
+                if (worldSeg[modulo(x-1,IMWD)][y-1] == 0xFF) fertility++;
+                if (worldSeg[x][y] == 0xFF){ //alive
+                    if (fertility < 2) worldSeg2[x][y] = 0x00; //die
+                    else if (fertility == 2 || fertility == 3) worldSeg2[x][y] = 0xFF; //chill
+                    else if (fertility > 3) worldSeg2[x][y] = 0x00; //die
+                    else worldSeg2[x][y] = worldSeg[x][y];
+                } else if (worldSeg[x][y] == 0x00) { //dead
+                    if (fertility == 3) worldSeg2[x][y] = 0xFF;//come alive
+                    else worldSeg2[x][y] = worldSeg[x][y];
+                }
+            }
         }
+        printf("c\n");
+        for (int y=1; y<segHeight-1; y++){
+            for (int x = 0; x<IMWD; x++){
+                fromDistributor <: worldSeg2[x][y];
+            }
+        }
+        printf("d\n");
     }
-    printf("d\n");
-
 
 }
 
