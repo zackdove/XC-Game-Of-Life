@@ -85,12 +85,14 @@ int modulo(int x , int N){
 void worker(int workerID, chanend fromDistributor){
     uchar worldSeg[IMWD][segHeight];
     uchar worldSeg2[IMWD][segHeight];
+    printf("a\n");
 
     for (int y=0; y<segHeight; y++){
         for (int x = 0; x<IMWD; x++){
             fromDistributor :> worldSeg[x][y];
         }
     }
+    printf("b\n");
     for (int y=1; y<segHeight-1; y++){
         for (int x=0; x<IMWD; x++){
             int fertility=0;
@@ -113,12 +115,13 @@ void worker(int workerID, chanend fromDistributor){
             }
         }
     }
-
+    printf("c\n");
     for (int y=1; y<segHeight-1; y++){
         for (int x = 0; x<IMWD; x++){
             fromDistributor <: worldSeg2[x][y];
         }
     }
+    printf("d\n");
 
 
 }
@@ -146,49 +149,59 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
           c_in :> world[y][x];          //read the pixel value
       }
   }
+  printf("1\n");
   uchar world2[IMHT][IMWD];
   for (int iteration = 0; iteration<10; iteration++){
+      printf("2\n");
       for( int y = modulo(-1, IMHT); y < 1+(IMHT/workers); y++) {   //go through all lines
           for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
               toWorker[0] <: world[x][y];
           }
       }
+      printf("3\n");
       for( int y = (IMHT/workers)-1; y < 1+(2*IMHT/workers); y++) {   //go through all lines
           for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
               toWorker[1] <: world[x][y];
           }
       }
+      printf("4\n");
       for( int y = (2*IMHT/workers)-1; y < 1+(3*IMHT/workers); y++) {   //go through all lines
           for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
               toWorker[2] <: world[x][y];
           }
       }
+      printf("5\n");
       for( int y = (3*IMHT/workers)-1; y < modulo(1+(4*IMHT/workers),IMHT); y++) {   //go through all lines
           for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
               toWorker[3] <: world[x][y];
           }
       }
 /////////////////////
+      printf("6\n");
       for( int y = 0; y < IMHT/workers; y++) {   //go through all lines
           for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
               toWorker[0] :> world2[x][y];
           }
       }
+      printf("7\n");
       for( int y = IMHT/workers; y < (2*IMHT/workers); y++) {   //go through all lines
           for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
               toWorker[1] :> world2[x][y];
           }
       }
+      printf("7\n");
       for( int y = (2*IMHT/workers); y < (3*IMHT/workers); y++) {   //go through all lines
           for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
               toWorker[2] :> world2[x][y];
           }
       }
+      printf("8\n");
       for( int y = (3*IMHT/workers); y < (4*IMHT/workers); y++) {   //go through all lines
           for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
               toWorker[3] :> world2[x][y];
           }
       }
+      printf("9\n");
  //////////////////
       //copy world2 to world
       for( int y = 0; y < IMHT; y++ ) {   //go through all lines
@@ -197,7 +210,7 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
                 c_out <: (uchar)( world[y][x]);
             }
       }
-
+      printf("10\n");
 
 
       waitMoment();
@@ -293,7 +306,7 @@ par {
     orientation(i2c[0],c_control);        //client thread reading orientation data
     DataInStream(infname, c_inIO);          //thread to read in a PGM image
     DataOutStream(c_outIO);       //thread to write out a PGM image
-    distributor(c_inIO, c_outIO, c_control,c_workerToDist);//thread to coordinate work on image
+    distributor(c_inIO, c_outIO, c_control, c_workerToDist);//thread to coordinate work on image
     for (int i=0; i<4; i++){
         worker(i, c_workerToDist[i]);
     }
