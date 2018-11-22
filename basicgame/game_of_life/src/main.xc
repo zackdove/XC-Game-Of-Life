@@ -10,7 +10,11 @@
 #define  IMHT 16                  //image height
 #define  IMWD 16                  //image width
 
-int workers = 4;
+#define workers 4
+
+#define segHeight (IMHT/workers)+2
+
+
 
 typedef unsigned char uchar;      //using uchar as shorthand
 
@@ -78,9 +82,10 @@ int modulo(int x , int N){
     return(x % N + N) %N;
 }
 
-void worker(int workerID, channend fromDistributor){
-    segHeight = (IMHHT/4)+2;
+void worker(int workerID, chanend fromDistributor){
     uchar worldSeg[IMWD][segHeight];
+    uchar worldSeg2[IMWD][segHeight];
+
     for (int y=0; y<segHeight; y++){
         for (int x = 0; x<IMWD; x++){
             fromDistributor :> worldSeg[x][y];
@@ -88,24 +93,23 @@ void worker(int workerID, channend fromDistributor){
     }
     for (int y=0; y<segHeight; y++){
         for (int x=0; x<IMWD; x++){
-            fertility=0;
-            fertility = 0;
-            if (world[x][modulo(y+1,segHeight)] == 0xFF) fertility++;
-            if (world[x][modulo(y-1,segHeight)] == 0xFF) fertility++;
-            if (world[modulo(x+1,IMWD)][y] == 0xFF) fertility++;
-            if (world[modulo(x+1,IMWD)][modulo(y+1,segHeight)] == 0xFF) fertility++;
-            if (world[modulo(x+1,IMWD)][modulo(y-1,segHeight)] == 0xFF) fertility++;
-            if (world[modulo(x-1,IMWD)][y] == 0xFF) fertility++;
-            if (world[modulo(x-1,IMWD)][modulo(y+1,segHeight)] == 0xFF) fertility++;
-            if (world[modulo(x-1,IMWD)][modulo(y-1,segHeight)] == 0xFF) fertility++;
-            if (world[x][y] == 0xFF){ //alive
-                if (fertility < 2) world2[x][y] = 0x00; //die
-                else if (fertility == 2 || fertility == 3) world2[x][y] = 0xFF; //chill
-                else if (fertility > 3) world2[x][y] = 0x00; //die
-                else world2[x][y] = world[x][y];
-            } else if (world[x][y] == 0x00) { //dead
-                if (fertility == 3) world2[x][y] = 0xFF;//come alive
-                else world2[x][y] = world[x][y];
+            int fertility=0;
+            if (worldSeg[x][modulo(y+1,segHeight)] == 0xFF) fertility++;
+            if (worldSeg[x][modulo(y-1,segHeight)] == 0xFF) fertility++;
+            if (worldSeg[modulo(x+1,IMWD)][y] == 0xFF) fertility++;
+            if (worldSeg[modulo(x+1,IMWD)][modulo(y+1,segHeight)] == 0xFF) fertility++;
+            if (worldSeg[modulo(x+1,IMWD)][modulo(y-1,segHeight)] == 0xFF) fertility++;
+            if (worldSeg[modulo(x-1,IMWD)][y] == 0xFF) fertility++;
+            if (worldSeg[modulo(x-1,IMWD)][modulo(y+1,segHeight)] == 0xFF) fertility++;
+            if (worldSeg[modulo(x-1,IMWD)][modulo(y-1,segHeight)] == 0xFF) fertility++;
+            if (worldSeg[x][y] == 0xFF){ //alive
+                if (fertility < 2) worldSeg2[x][y] = 0x00; //die
+                else if (fertility == 2 || fertility == 3) worldSeg2[x][y] = 0xFF; //chill
+                else if (fertility > 3) worldSeg2[x][y] = 0x00; //die
+                else worldSeg2[x][y] = worldSeg[x][y];
+            } else if (worldSeg[x][y] == 0x00) { //dead
+                if (fertility == 3) worldSeg2[x][y] = 0xFF;//come alive
+                else worldSeg2[x][y] = worldSeg[x][y];
             }
         }
     }
@@ -118,13 +122,12 @@ void worker(int workerID, channend fromDistributor){
 // Currently the function just inverts the image
 //
 /////////////////////////////////////////////////////////////////////////////////////////
-void distributor(chanend c_in, chanend c_out, chanend fromAcc, channend toWorker)
+void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[workers])
 {
   //Starting up and wait for tilting of the xCore-200 Explorer
   printf( "ProcessImage: Start, size = %dx%d\n", IMHT, IMWD );
   printf( "Waiting for Board Tilt...\n" );
   fromAcc :> int value;
-  int fertility;
   uchar world[IMHT][IMWD];
   //Read in and do something with your image values..
   //This just inverts every pixel, but you should
@@ -140,22 +143,22 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, channend toWorker
   for (int iteration = 0; iteration<10; iteration++){
       for( int y = modulo(-1, IMHT); y < 1+(IMHT/workers); y++) {   //go through all lines
           for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-              toWorker[i] <: world[x][y];
+              toWorker[0] <: world[x][y];
           }
       }
       for( int y = (IMHT/workers)-1; y < 1+(2*IMHT/workers); y++) {   //go through all lines
           for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-              toWorker[i] <: world[x][y];
+              toWorker[1] <: world[x][y];
           }
       }
       for( int y = (2*IMHT/workers)-1; y < 1+(3*IMHT/workers); y++) {   //go through all lines
           for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-              toWorker[i] <: world[x][y];
+              toWorker[2] <: world[x][y];
           }
       }
-      for( int y = (3*IMHT/workers)-1; y < modulo(1+(4*IMHT/workers)); y++) {   //go through all lines
+      for( int y = (3*IMHT/workers)-1; y < modulo(1+(4*IMHT/workers),IMHT); y++) {   //go through all lines
           for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
-              toWorker[i] <: world[x][y];
+              toWorker[3] <: world[x][y];
           }
       }
       //copy world2 to world
@@ -258,9 +261,9 @@ par {
     orientation(i2c[0],c_control);        //client thread reading orientation data
     DataInStream(infname, c_inIO);          //thread to read in a PGM image
     DataOutStream(c_outIO);       //thread to write out a PGM image
-    distributor(c_inIO, c_outIO, c_control);//thread to coordinate work on image
+    distributor(c_inIO, c_outIO, c_control,c_workerToDist);//thread to coordinate work on image
     for (int i=0; i<4; i++){
-        worker(i, c_workerToDist);
+        worker(i, c_workerToDist[i]);
     }
   }
 
