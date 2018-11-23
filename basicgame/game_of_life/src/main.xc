@@ -159,7 +159,7 @@ void worker(int workerID, chanend fromDistributor){
 }
 
 void getStartButtonPressed(chanend toButtonManager){
-    toButtonManager :> int buttonPressed //value doesnt matter, just to signal that it's been recieved
+    toButtonManager :> int buttonPressed; //value doesnt matter, just to signal that it's been recieved
 
 }
 
@@ -172,12 +172,12 @@ void getStartButtonPressed(chanend toButtonManager){
 // Currently the function just inverts the image
 //
 /////////////////////////////////////////////////////////////////////////////////////////
-void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[workers], toButtonManager)
+void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[workers], chanend toButtonManager)
 {
 
   //Starting up and wait for tilting of the xCore-200 Explorer
   printf( "ProcessImage: Start, size = %dx%d\n", IMHT, IMWD );
-  printf( "Waiting for  Tilt...\n" );
+  printf( "Waiting for button press....\n" );
   getStartButtonPressed(toButtonManager);
   //fromAcc :> int value;
 
@@ -194,6 +194,7 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
 
   //Bitpacking starts here
 
+/*
   uchar packedWorld[IMWD/8][IMHT];
       for (int y = 0; y<IMHT; y++){
           for (int byte = 0; byte<IMWD/8; byte++){
@@ -205,6 +206,7 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
               }
           }
       }
+*/
 
   //Bitpacking ends here
 
