@@ -7,10 +7,10 @@
 #include "pgmIO.h"
 #include "i2c.h"
 
-#define  IMHT 64                  //image height
-#define  IMWD 64                  //image width
+#define  IMHT 16                  //image height
+#define  IMWD 16                  //image width
 
-#define workers 8
+#define workers 4
 
 #define segHeight (IMHT/workers)+2
 
@@ -39,7 +39,7 @@ on tile[0] : port p_sda = XS1_PORT_1F;
 /////////////////////////////////////////////////////////////////////////////////////////
 void DataInStream( chanend c_out)
 {
-  char infname[] = "64x64.pgm";
+  char infname[] = "test.pgm";
   int res;
   uchar line[ IMWD ];
   printf( "DataInStream: Start...\n" );
@@ -67,7 +67,7 @@ void DataInStream( chanend c_out)
   return;
 }
 
-void bitPackWorld(unpackedWorld[IMWD][IMHT], chanend toDistributor){
+void bitPackWorld(uchar unpackedWorld[IMWD][IMHT], chanend toDistributor){
     uchar packedWorld[IMWD/8][IMHT];
     for (int y = 0; y<IMHT; y++){
         for (int byte = 0; byte<IMWD/8; byte++){
@@ -79,7 +79,7 @@ void bitPackWorld(unpackedWorld[IMWD][IMHT], chanend toDistributor){
             }
         }
     }
-    toDistributor <: packedWorld[IMWD/8][IMHT];
+    toDistributor <: packedWorld;
 
 }
 
