@@ -41,26 +41,28 @@ on tile[0] : out port leds = XS1_PORT_4F;   //port for LEDs
 //
 /////////////////////////////////////////////////////////////////////////////////////////
 //DISPLAYS an LED pattern
-int showLEDs(out port p, chanend fromDistributor) {
-  int pattern; //1st bit...separate green LED
-               //2nd bit...blue LED
-               //3rd bit...green LED
-               //4th bit...red LED
+int ledManager(out port p, chanend fromDistributor) {
+  int pattern; //1st bit...separate green LED : flashing while processing
+               //2nd bit...blue LED : on while exporting
+               //3rd bit...green LED : on while reading
+               //4th bit...red LED : on while paused
   while (1) {
-    fromVisualiser :> pattern;   //receive new pattern from visualiser
+    fromDistributor :> pattern;   //receive new pattern from distributor
     p <: pattern;                //send pattern to LED port
   }
   return 0;
 }
 
 //READ BUTTONS and send button pattern to userAnt
-void buttonListener(in port b, chanend toUserAnt) {
+void buttonManager(in port b, chanend toDistributor) {
   int r;
+  b when pinseq(14) :> r;
+  toDistributor <: 0; //number doesn't matter, dist is just waiting
   while (1) {
     b when pinseq(15)  :> r;    // check that no button is pressed
     b when pinsneq(15) :> r;    // check if some buttons are pressed
     if ((r==13) || (r==14))     // if either button is pressed
-    toUserAnt <: r;             // send button pattern to userAnt
+    toDistributor <: r;             // send button pattern to userAnt
   }
 }
 
@@ -156,6 +158,11 @@ void worker(int workerID, chanend fromDistributor){
     }
 }
 
+void getStartButtonPressed(chanend toButtonManager){
+    toButtonManager :> int buttonPressed //value doesnt matter, just to signal that it's been recieved
+
+}
+
 
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -165,13 +172,15 @@ void worker(int workerID, chanend fromDistributor){
 // Currently the function just inverts the image
 //
 /////////////////////////////////////////////////////////////////////////////////////////
-void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[workers])
+void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[workers], toButtonManager)
 {
 
   //Starting up and wait for tilting of the xCore-200 Explorer
   printf( "ProcessImage: Start, size = %dx%d\n", IMHT, IMWD );
-  printf( "Waiting for Board Tilt...\n" );
-  fromAcc :> int value;
+  printf( "Waiting for  Tilt...\n" );
+  getStartButtonPressed(toButtonManager);
+  //fromAcc :> int value;
+
   uchar world[IMHT][IMWD];
   //Read in and do something with your image values..
   //This just inverts every pixel, but you should
@@ -320,14 +329,17 @@ i2c_master_if i2c[1];               //interface to orientation
      //put your input image path here
 chan c_inIO, c_outIO, c_control;    //extend your channel definitions here
 chan c_workerToDist[workers];
-
+chan c_toLEDs;
+chan c_toButtonManager;
 
 par {
     on tile[0] : i2c_master(i2c, 1, p_scl, p_sda, 10);   //server thread providing orientation data
     on tile[0] : orientation(i2c[0],c_control);        //client thread reading orientation data
     on tile[0] : DataInStream(c_inIO);          //thread to read in a PGM image
     on tile[0] : DataOutStream(c_outIO);       //thread to write out a PGM image
-    on tile[0] : distributor(c_inIO, c_outIO, c_control, c_workerToDist);//thread to coordinate work on image
+    on tile[0] : distributor(c_inIO, c_outIO, c_control, c_workerToDist, c_toButtonManager);//thread to coordinate work on image
+    on tile[0] : ledManager(leds, c_toLEDs);
+    on tile[0] : buttonManager(buttons, c_toButtonManager);
     par (int i=0; i<workers; i++){
         on tile[1] : worker(i, c_workerToDist[i]);
     }
