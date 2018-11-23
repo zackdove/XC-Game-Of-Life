@@ -160,7 +160,6 @@ void worker(int workerID, chanend fromDistributor){
 
 void getStartButtonPressed(chanend toButtonManager){
     toButtonManager :> int buttonPressed //value doesnt matter, just to signal that it's been recieved
-
 }
 
 
@@ -274,6 +273,13 @@ void DataOutStream(chanend c_in)
   return;
 }
 
+void checkPaused(int orientation){
+    if (orientation <= -50){ //Tilted enough the parts
+        //tell workers
+    }
+}
+
+
 /////////////////////////////////////////////////////////////////////////////////////////
 //
 // Initialise and  read orientation, send first tilt event to channel
@@ -282,7 +288,6 @@ void DataOutStream(chanend c_in)
 void orientation( client interface i2c_master_if i2c, chanend toDist) {
   i2c_regop_res_t result;
   char status_data = 0;
-  int tilted = 0;
 
   // Configure FXOS8700EQ
   result = i2c.write_reg(FXOS8700EQ_I2C_ADDR, FXOS8700EQ_XYZ_DATA_CFG_REG, 0x01);
@@ -307,13 +312,8 @@ void orientation( client interface i2c_master_if i2c, chanend toDist) {
     //get new x-axis tilt value
     int x = read_acceleration(i2c, FXOS8700EQ_OUT_X_MSB);
 
-    //send signal to distributor after first tilt
-    if (!tilted) {
-      if (x>30) {
-        tilted = 1 - tilted;
-        toDist <: 1;
-      }
-    }
+    checkPaused(x);
+
   }
 }
 
