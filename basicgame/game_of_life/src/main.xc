@@ -67,6 +67,22 @@ void DataInStream( chanend c_out)
   return;
 }
 
+void bitPackWorld(unpackedWorld[IMWD][IMHT], chanend toDistributor){
+    uchar packedWorld[IMWD/8][IMHT];
+    for (int y = 0; y<IMHT; y++){
+        for (int byte = 0; byte<IMWD/8; byte++){
+            packedWorld[byte][y] = 0x00;
+            for (int bit=0; bit<8; bit++){
+                if (unpackedWorld[byte+bit][y] == 0xFF) {
+                    packedWorld[byte][y] = packedWorld[byte][y] |= 1<<7-bit;
+                }
+            }
+        }
+    }
+    toDistributor <: packedWorld[IMWD/8][IMHT];
+
+}
+
 //WAIT function
 void waitMoment() {
   timer tmr;
@@ -76,9 +92,8 @@ void waitMoment() {
   tmr when timerafter(waitTime) :> void; //wait until waitTime is reached
 }
 
-void checkCellsAround(){
 
-}
+
 int modulo(int x , int N){
     return(x % N + N) %N;
 }
@@ -137,6 +152,7 @@ void worker(int workerID, chanend fromDistributor){
 /////////////////////////////////////////////////////////////////////////////////////////
 void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[workers])
 {
+
   //Starting up and wait for tilting of the xCore-200 Explorer
   printf( "ProcessImage: Start, size = %dx%d\n", IMHT, IMWD );
   printf( "Waiting for Board Tilt...\n" );
@@ -151,6 +167,9 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
           c_in :> world[x][y];          //read the pixel value
       }
   }
+  chanend fromBitPacker;
+  bitPackWorld(world, fromBitpacker);
+  fromBitPacker :> uchar packedWorld[IMWD/8][IMHHT];
   printf("1\n");
   uchar world2[IMHT][IMWD];
   for (int iteration = 0; iteration<10; iteration++){
@@ -272,6 +291,7 @@ i2c_master_if i2c[1];               //interface to orientation
      //put your input image path here
 chan c_inIO, c_outIO, c_control;    //extend your channel definitions here
 chan c_workerToDist[workers];
+
 
 par {
     on tile[0] : i2c_master(i2c, 1, p_scl, p_sda, 10);   //server thread providing orientation data
