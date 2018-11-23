@@ -67,21 +67,6 @@ void DataInStream( chanend c_out)
   return;
 }
 
-void bitPackWorld(uchar unpackedWorld[IMWD][IMHT], chanend toDistributor){
-    uchar packedWorld[IMWD/8][IMHT];
-    for (int y = 0; y<IMHT; y++){
-        for (int byte = 0; byte<IMWD/8; byte++){
-            packedWorld[byte][y] = 0x00;
-            for (int bit=0; bit<8; bit++){
-                if (unpackedWorld[byte+bit][y] == 0xFF) {
-                    packedWorld[byte][y] = packedWorld[byte][y] |= 1<<7-bit;
-                }
-            }
-        }
-    }
-    toDistributor <: packedWorld;
-
-}
 
 //WAIT function
 void waitMoment() {
@@ -140,8 +125,9 @@ void worker(int workerID, chanend fromDistributor){
         }
         printf("d\n");
     }
-
 }
+
+
 
 /////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -167,9 +153,23 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
           c_in :> world[x][y];          //read the pixel value
       }
   }
-  chanend fromBitPacker;
-  bitPackWorld(world, fromBitpacker);
-  fromBitPacker :> uchar packedWorld[IMWD/8][IMHHT];
+
+  //Bitpacking starts here
+
+  uchar packedWorld[IMWD/8][IMHT];
+      for (int y = 0; y<IMHT; y++){
+          for (int byte = 0; byte<IMWD/8; byte++){
+              packedWorld[byte][y] = 0x00;
+              for (int bit=0; bit<8; bit++){
+                  if (world[byte+bit][y] == 0xFF) {
+                      packedWorld[byte][y] = packedWorld[byte][y] |= 1<<7-bit;
+                  }
+              }
+          }
+      }
+
+  //Bitpacking ends here
+
   printf("1\n");
   uchar world2[IMHT][IMWD];
   for (int iteration = 0; iteration<10; iteration++){
