@@ -14,6 +14,8 @@
 
 #define segHeight (IMHT/workers)+2
 
+#define iterations 20
+
 
 
 typedef unsigned char uchar;      //using uchar as shorthand
@@ -215,8 +217,8 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
   //Bitpacking ends here
   printf("1\n");
   uchar world2[IMHT][IMWD];
-  for (int iteration = 0; iteration<10; iteration++){
-      toLedManager <: 1;
+  toLedManager <: 1;
+  for (int iteration = 0; iteration<iterations; iteration++){
       printf("2\n");
       for (int i = 0; i<workers; i++){
           int min =(i*IMHT/workers)-1;
@@ -238,6 +240,7 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
           }
       }
       fromCheckPause :> int checkPause; //if no signal is recieved, then pause, else continue
+      toLedManager <: iteration % 2;
       printf("9\n");
  ///////////////////
       //copy world2 to world
@@ -285,7 +288,6 @@ void checkPaused(int orientation, chanend toDistributor, chanend c_pauseToLedMan
         //tell workers
         c_pauseToLedManager <: 8;
     } else { //Dont pause
-        c_pauseToLedManager <: 0;
         toDistributor <: 0;
     }
 }
