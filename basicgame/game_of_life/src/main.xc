@@ -119,7 +119,6 @@ void worker(int workerID, chanend fromDistributor){
     uchar worldSeg2[IMWD][segHeight];
     printf("workerID%i\n",workerID);
     while(1){
-        fromCheckPause :> int paused;
         printf("a\n");
         for (int y=0; y<segHeight; y++){
             for (int x = 0; x<IMWD; x++){
@@ -279,7 +278,7 @@ void checkPaused(int orientation, chanend toDistributor){
         //tell workers
 
     } else { //Dont pause
-        toWorkers <: 0;
+        toDistributor <: 0;
     }
 }
 
@@ -289,7 +288,7 @@ void checkPaused(int orientation, chanend toDistributor){
 // Initialise and  read orientation, send first tilt event to channel
 //
 /////////////////////////////////////////////////////////////////////////////////////////
-void orientation( client interface i2c_master_if i2c, chanend toDist, chanend pauseToWorkers) {
+void orientation( client interface i2c_master_if i2c, chanend toDist, chanend pauseToDistributor) {
   i2c_regop_res_t result;
   char status_data = 0;
 
@@ -316,7 +315,7 @@ void orientation( client interface i2c_master_if i2c, chanend toDist, chanend pa
     //get new x-axis tilt value
     int x = read_acceleration(i2c, FXOS8700EQ_OUT_X_MSB);
 
-    checkPaused(x, pauseToWorkers);
+    checkPaused(x, pauseToDistributor);
 
   }
 }
@@ -339,7 +338,7 @@ chan c_pauseToDistributor;
 
 par {
     on tile[0] : i2c_master(i2c, 1, p_scl, p_sda, 10);   //server thread providing orientation data
-    on tile[0] : orientation(i2c[0],c_control, c_pauseToWorkers);        //client thread reading orientation data
+    on tile[0] : orientation(i2c[0],c_control, c_pauseToDistributor);        //client thread reading orientation data
     on tile[0] : DataInStream(c_inIO);          //thread to read in a PGM image
     on tile[0] : DataOutStream(c_outIO);       //thread to write out a PGM image
     on tile[0] : distributor(c_inIO, c_outIO, c_control, c_workerToDist, c_toButtonManager, c_pauseToDistributor);//thread to coordinate work on image
