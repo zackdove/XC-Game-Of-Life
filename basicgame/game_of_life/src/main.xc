@@ -114,7 +114,7 @@ int modulo(int x , int N){
     return(x % N + N) %N;
 }
 
-void worker(int workerID, chanend fromDistributor, chanend fromCheckPause, chanend fromCheckPause){
+void worker(int workerID, chanend fromDistributor, chanend fromCheckPause){
     uchar worldSeg[IMWD][segHeight];
     uchar worldSeg2[IMWD][segHeight];
     printf("workerID%i\n",workerID);
