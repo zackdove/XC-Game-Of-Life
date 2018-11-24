@@ -63,15 +63,28 @@ int ledManager(out port p, chanend fromDistributor, chanend fromCheckPause) {
 
 //READ BUTTONS and send button pattern to userAnt
 void buttonManager(in port b, chanend toDistributor) {
+
   int r;
   b when pinseq(14) :> r;
   toDistributor <: 0; //number doesn't matter, dist is just waiting
   while (1) {
-    b when pinseq(15)  :> r;    // check that no button is pressed
-    b when pinsneq(15) :> r;    // check if some buttons are pressed
-    if ((r==13) || (r==14))     // if either button is pressed
+    b when pinseq(13)  :> r;
     toDistributor <: r;             // send button pattern to userAnt
   }
+}
+
+
+int checkExportSignal(chanend toLedManager, chanend fromButtonManager){
+    int exportSignal;
+    select {
+        case fromButtonManager :> exportSignal: //If a signal is received, then export
+            toLedManager <: 2;
+            return 1;
+            break;
+        default: //If no signal, then carry on
+            return 0;
+            break;
+    }
 }
 
 
@@ -168,7 +181,6 @@ void worker(int workerID, chanend fromDistributor){
 
 void getStartButtonPressed(chanend toButtonManager){
     toButtonManager :> int buttonPressed; //value doesnt matter, just to signal that it's been recieved
-
 }
 
 
@@ -180,7 +192,7 @@ void getStartButtonPressed(chanend toButtonManager){
 // Currently the function just inverts the image
 //
 /////////////////////////////////////////////////////////////////////////////////////////
-void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[workers], chanend toButtonManager, chanend fromCheckPause, chanend toLedManager)
+void distributor(chanend c_in, chanend toPrint, chanend fromAcc, chanend toWorker[workers], chanend toButtonManager, chanend fromCheckPause, chanend toLedManager)
 {
 
   //Starting up and wait for tilting of the xCore-200 Explorer
@@ -247,7 +259,8 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
       for( int y = 0; y < IMHT; y++ ) {   //go through all lines
             for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
                 world[x][y] = world2[x][y];
-                c_out <: (uchar)( world[y][x]);
+                toPrint <: (uchar)( world[y][x]);
+
             }
       }
       printf("10\n");
@@ -270,7 +283,7 @@ void printWorld(chanend c_in){
       for( int y = 0; y < IMHT; y++ ) {
         for(int x = 0; x < IMWD; x++ ) {
           c_in :> line[x];
-          printf( "-%4.1d ", line[ x ] );
+          printf( "-%4.1d ", line[x] );
         }
         printf( "End of line\n" );
       }
