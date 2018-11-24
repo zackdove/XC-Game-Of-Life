@@ -47,8 +47,6 @@ int ledManager(out port p, chanend fromDistributor, chanend fromCheckPause) {
                //3rd bit...green LED : on while reading
                //4th bit...red LED : on while paused
   while (1) {
-    fromDistributor :> pattern;
-    p <: pattern;
     select {
         case fromCheckPause :> pattern;
             p <: pattern;
@@ -239,7 +237,7 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
               }
           }
       }
-      fromCheckPause :> int checkPause; //if no signal is recieved, then pause else continue
+      fromCheckPause :> int checkPause; //if no signal is recieved, then pause, else continue
       printf("9\n");
  ///////////////////
       //copy world2 to world
@@ -291,7 +289,6 @@ void checkPaused(int orientation, chanend toDistributor, chanend c_pauseToLedMan
         toDistributor <: 0;
     }
 }
-
 
 /////////////////////////////////////////////////////////////////////////////////////////
 //
