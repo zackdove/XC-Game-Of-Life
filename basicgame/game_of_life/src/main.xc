@@ -172,7 +172,7 @@ void getStartButtonPressed(chanend toButtonManager){
 // Currently the function just inverts the image
 //
 /////////////////////////////////////////////////////////////////////////////////////////
-void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[workers], chanend toButtonManager, chanend fromCheckPause)
+void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[workers], chanend toButtonManager, chanend fromCheckPause, chanend toLedManager)
 {
 
   //Starting up and wait for tilting of the xCore-200 Explorer
@@ -186,11 +186,13 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
   //This just inverts every pixel, but you should
   //change the image according to the "Game of Life"
   printf( "Processing...\n" );
+  toLedManager <: 3;
   for( int y = 0; y < IMHT; y++ ) {     //go through all lines
       for( int x = 0; x < IMWD; x++ ) { //go through each pixel per line
           c_in :> world[x][y];          //read the pixel value
       }
   }
+  toLedManager <: 0;
   //Bitpacking starts here
 /*
   uchar packedWorld[IMWD/8][IMHT];
@@ -229,7 +231,7 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
               }
           }
       }
-      fromCheckPause :> int checkPause;
+      fromCheckPause :> int checkPause; //if no signal is recieved, then pause else continue
       printf("9\n");
  ///////////////////
       //copy world2 to world
@@ -240,8 +242,6 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
             }
       }
       printf("10\n");
-
-
       waitMoment();
   }
   printf( "\nOne processing round completed...\n" );
@@ -321,11 +321,7 @@ void orientation( client interface i2c_master_if i2c, chanend toDist, chanend pa
   }
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////
-//
 // Orchestrate concurrent system and start up all threads
-//
-/////////////////////////////////////////////////////////////////////////////////////////
 int main(void) {
 
 i2c_master_if i2c[1];               //interface to orientation
@@ -342,7 +338,7 @@ par {
     on tile[0] : orientation(i2c[0],c_control, c_pauseToDistributor);        //client thread reading orientation data
     on tile[0] : DataInStream(c_inIO);          //thread to read in a PGM image
     on tile[0] : DataOutStream(c_outIO);       //thread to write out a PGM image
-    on tile[0] : distributor(c_inIO, c_outIO, c_control, c_workerToDist, c_toButtonManager, c_pauseToDistributor);//thread to coordinate work on image
+    on tile[0] : distributor(c_inIO, c_outIO, c_control, c_workerToDist, c_toButtonManager, c_pauseToDistributor, c_ledManager);//thread to coordinate work on image
     on tile[0] : ledManager(leds, c_toLEDs);
     on tile[0] : buttonManager(buttons, c_toButtonManager);
     par (int i=0; i<workers; i++){
