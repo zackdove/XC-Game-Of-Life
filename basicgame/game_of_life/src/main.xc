@@ -50,7 +50,7 @@ int ledManager(out port p, chanend fromDistributor, chanend fromCheckPause) {
     fromDistributor :> pattern;
     p <: pattern;
     select {
-        case fromCheckPause :> pattern;
+        case fromCheckPause :> pattern:
             p <: pattern;
             break;
         case fromDistributor :> pattern:
