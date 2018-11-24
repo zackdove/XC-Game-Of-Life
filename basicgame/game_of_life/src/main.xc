@@ -48,7 +48,7 @@ int ledManager(out port p, chanend fromDistributor, chanend fromCheckPause) {
                //4th bit...red LED : on while paused
   while (1) {
     select {
-        case fromCheckPause :> pattern;
+        case fromCheckPause :> pattern:
             p <: pattern;
             break;
         case fromDistributor :> pattern:
