@@ -114,7 +114,7 @@ int modulo(int x , int N){
     return(x % N + N) %N;
 }
 
-void worker(int workerID, chanend fromDistributor, chanend fromCheckPause){
+void worker(int workerID, chanend fromDistributor){
     uchar worldSeg[IMWD][segHeight];
     uchar worldSeg2[IMWD][segHeight];
     printf("workerID%i\n",workerID);
@@ -173,7 +173,7 @@ void getStartButtonPressed(chanend toButtonManager){
 // Currently the function just inverts the image
 //
 /////////////////////////////////////////////////////////////////////////////////////////
-void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[workers], chanend toButtonManager)
+void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[workers], chanend toButtonManager, chanend fromCheckPause)
 {
 
   //Starting up and wait for tilting of the xCore-200 Explorer
@@ -192,9 +192,7 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
           c_in :> world[x][y];          //read the pixel value
       }
   }
-
   //Bitpacking starts here
-
 /*
   uchar packedWorld[IMWD/8][IMHT];
       for (int y = 0; y<IMHT; y++){
@@ -208,12 +206,11 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
           }
       }
 */
-
   //Bitpacking ends here
-
   printf("1\n");
   uchar world2[IMHT][IMWD];
   for (int iteration = 0; iteration<10; iteration++){
+      fromCheckPause :> int checkPause;
       printf("2\n");
       for (int i = 0; i<workers; i++){
           int min =(i*IMHT/workers)-1;
@@ -277,7 +274,7 @@ void DataOutStream(chanend c_in)
   return;
 }
 
-void checkPaused(int orientation, chanend toWorkers){
+void checkPaused(int orientation, chanend toDistributor){
     if (orientation <= -50){ //Tilted enough for pause
         //tell workers
 
@@ -338,18 +335,18 @@ chan c_inIO, c_outIO, c_control;    //extend your channel definitions here
 chan c_workerToDist[workers];
 chan c_toLEDs;
 chan c_toButtonManager;
-chan c_pauseToWorkers;
+chan c_pauseToDistributor;
 
 par {
     on tile[0] : i2c_master(i2c, 1, p_scl, p_sda, 10);   //server thread providing orientation data
     on tile[0] : orientation(i2c[0],c_control, c_pauseToWorkers);        //client thread reading orientation data
     on tile[0] : DataInStream(c_inIO);          //thread to read in a PGM image
     on tile[0] : DataOutStream(c_outIO);       //thread to write out a PGM image
-    on tile[0] : distributor(c_inIO, c_outIO, c_control, c_workerToDist, c_toButtonManager);//thread to coordinate work on image
+    on tile[0] : distributor(c_inIO, c_outIO, c_control, c_workerToDist, c_toButtonManager, c_pauseToDistributor);//thread to coordinate work on image
     on tile[0] : ledManager(leds, c_toLEDs);
     on tile[0] : buttonManager(buttons, c_toButtonManager);
     par (int i=0; i<workers; i++){
-        on tile[1] : worker(i, c_workerToDist[i], c_pauseToWorkers);
+        on tile[1] : worker(i, c_workerToDist[i]);
     }
   }
 
