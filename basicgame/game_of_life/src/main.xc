@@ -10,7 +10,7 @@
 #define  IMHT 16                  //image height
 #define  IMWD 16                  //image width
 
-#define workers 4
+#define workers 8
 
 #define segHeight (IMHT/workers)+2
 
