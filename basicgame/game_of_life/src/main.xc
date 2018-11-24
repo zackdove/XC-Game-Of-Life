@@ -263,10 +263,8 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
 // Write pixel stream from channel c_in to PGM image file
 //
 /////////////////////////////////////////////////////////////////////////////////////////
-void DataOutStream(chanend c_in)
-{
+void printWorld(chanend c_in){
   uchar line[IMWD];
-
   //Compile each line of the image and write the image line-by-line
   while(1){
       for( int y = 0; y < IMHT; y++ ) {
@@ -274,11 +272,10 @@ void DataOutStream(chanend c_in)
           c_in :> line[x];
           printf( "-%4.1d ", line[ x ] );
         }
-
-        printf( "DataOutStream: Line written...\n" );
+        printf( "End of line\n" );
       }
   }
-  printf( "DataOutStream: Done...\n" );
+  printf( "Finished printing\n" );
   return;
 }
 
@@ -346,7 +343,7 @@ par {
     on tile[0] : i2c_master(i2c, 1, p_scl, p_sda, 10);   //server thread providing orientation data
     on tile[0] : orientation(i2c[0],c_control, c_pauseToDistributor, c_pauseToLedManager);        //client thread reading orientation data
     on tile[0] : DataInStream(c_inIO);          //thread to read in a PGM image
-    on tile[0] : DataOutStream(c_outIO);       //thread to write out a PGM image
+    on tile[0] : printWorld(c_outIO);       //thread to write out a PGM image
     on tile[0] : distributor(c_inIO, c_outIO, c_control, c_workerToDist, c_toButtonManager, c_pauseToDistributor, c_distributorToLedManager);//thread to coordinate work on image
     on tile[0] : ledManager(leds, c_distributorToLedManager, c_pauseToLedManager);
     on tile[0] : buttonManager(buttons, c_toButtonManager);
