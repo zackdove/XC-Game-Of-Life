@@ -274,6 +274,7 @@ void DataOutStream(chanend c_in)
 }
 
 void checkPaused(int orientation, chanend toDistributor){
+    printf("orientation = %i\n", orientation);
     if (orientation <= -50){ //Tilted enough for pause
         //tell workers
 
