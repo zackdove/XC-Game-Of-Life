@@ -41,14 +41,22 @@ on tile[0] : out port leds = XS1_PORT_4F;   //port for LEDs
 //
 /////////////////////////////////////////////////////////////////////////////////////////
 //DISPLAYS an LED pattern
-int ledManager(out port p, chanend fromDistributor) {
+int ledManager(out port p, chanend fromDistributor, chanend fromCheckPause) {
   int pattern = 0; //1st bit...separate green LED : flashing while processing
                //2nd bit...blue LED : on while exporting
                //3rd bit...green LED : on while reading
                //4th bit...red LED : on while paused
   while (1) {
-    fromDistributor :> pattern;   //receive new pattern from distributor
-    p <: pattern;                //send pattern to LED port
+    fromDistributor :> pattern;
+    p <: pattern;
+    select {
+        case fromCheckPause :> pattern;
+            p <: pattern;
+            break;
+        case fromDistributor :> pattern:
+            p <: pattern;
+            break;
+    }
   }
   return 0;
 }
@@ -192,7 +200,6 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
           c_in :> world[x][y];          //read the pixel value
       }
   }
-  //toLedManager <: 1;
   //Bitpacking starts here
 /*
   uchar packedWorld[IMWD/8][IMHT];
@@ -211,6 +218,7 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
   printf("1\n");
   uchar world2[IMHT][IMWD];
   for (int iteration = 0; iteration<10; iteration++){
+      toLedManager <: 1;
       printf("2\n");
       for (int i = 0; i<workers; i++){
           int min =(i*IMHT/workers)-1;
@@ -231,9 +239,7 @@ void distributor(chanend c_in, chanend c_out, chanend fromAcc, chanend toWorker[
               }
           }
       }
-
       fromCheckPause :> int checkPause; //if no signal is recieved, then pause else continue
-
       printf("9\n");
  ///////////////////
       //copy world2 to world
@@ -275,12 +281,13 @@ void DataOutStream(chanend c_in)
   return;
 }
 
-void checkPaused(int orientation, chanend toDistributor){
+void checkPaused(int orientation, chanend toDistributor, chanend c_pauseToLedManager){
     printf("orientation = %i\n", orientation);
     if (orientation <= -50){ //Tilted enough for pause
         //tell workers
-
+        c_pauseToLedManager <: 8;
     } else { //Dont pause
+        c_pauseToLedManager <: 0;
         toDistributor <: 0;
     }
 }
@@ -291,7 +298,7 @@ void checkPaused(int orientation, chanend toDistributor){
 // Initialise and  read orientation, send first tilt event to channel
 //
 /////////////////////////////////////////////////////////////////////////////////////////
-void orientation( client interface i2c_master_if i2c, chanend toDist, chanend pauseToDistributor) {
+void orientation( client interface i2c_master_if i2c, chanend toDist, chanend pauseToDistributor, chanend c_pauseToLedManager) {
   i2c_regop_res_t result;
   char status_data = 0;
 
@@ -318,7 +325,7 @@ void orientation( client interface i2c_master_if i2c, chanend toDist, chanend pa
     //get new x-axis tilt value
     int x = read_acceleration(i2c, FXOS8700EQ_OUT_X_MSB);
 
-    checkPaused(x, pauseToDistributor);
+    checkPaused(x, pauseToDistributor, c_pauseToLedManager);
 
   }
 }
@@ -331,17 +338,18 @@ i2c_master_if i2c[1];               //interface to orientation
      //put your input image path here
 chan c_inIO, c_outIO, c_control;    //extend your channel definitions here
 chan c_workerToDist[workers];
-chan c_toLedManager;
+chan c_distributorToLedManager;
 chan c_toButtonManager;
 chan c_pauseToDistributor;
+chan c_pauseToLedManager;
 
 par {
     on tile[0] : i2c_master(i2c, 1, p_scl, p_sda, 10);   //server thread providing orientation data
-    on tile[0] : orientation(i2c[0],c_control, c_pauseToDistributor);        //client thread reading orientation data
+    on tile[0] : orientation(i2c[0],c_control, c_pauseToDistributor, c_pauseToLedManager);        //client thread reading orientation data
     on tile[0] : DataInStream(c_inIO);          //thread to read in a PGM image
     on tile[0] : DataOutStream(c_outIO);       //thread to write out a PGM image
-    on tile[0] : distributor(c_inIO, c_outIO, c_control, c_workerToDist, c_toButtonManager, c_pauseToDistributor, c_toLedManager);//thread to coordinate work on image
-    on tile[0] : ledManager(leds, c_toLedManager);
+    on tile[0] : distributor(c_inIO, c_outIO, c_control, c_workerToDist, c_toButtonManager, c_pauseToDistributor, c_distributorToLedManager);//thread to coordinate work on image
+    on tile[0] : ledManager(leds, c_distributorToLedManager, c_pauseToLedManager);
     on tile[0] : buttonManager(buttons, c_toButtonManager);
     par (int i=0; i<workers; i++){
         on tile[1] : worker(i, c_workerToDist[i]);
