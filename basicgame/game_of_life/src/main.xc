@@ -114,11 +114,12 @@ int modulo(int x , int N){
     return(x % N + N) %N;
 }
 
-void worker(int workerID, chanend fromDistributor){
+void worker(int workerID, chanend fromDistributor, chanend fromCheckPause){
     uchar worldSeg[IMWD][segHeight];
     uchar worldSeg2[IMWD][segHeight];
     printf("workerID%i\n",workerID);
     while(1){
+        fromCheckPause :> int paused;
         printf("a\n");
         for (int y=0; y<segHeight; y++){
             for (int x = 0; x<IMWD; x++){
@@ -276,9 +277,12 @@ void DataOutStream(chanend c_in)
   return;
 }
 
-void checkPaused(int orientation){
-    if (orientation <= -50){ //Tilted enough the parts
+void checkPaused(int orientation, chanend toWorkers){
+    if (orientation <= -50){ //Tilted enough for pause
         //tell workers
+
+    } else { //Dont pause
+        toWorkers <: 0;
     }
 }
 
