@@ -114,7 +114,7 @@ int modulo(int x , int N){
     return(x % N + N) %N;
 }
 
-void worker(int workerID, chanend fromDistributor, chanend fromCheckPause){
+void worker(int workerID, chanend fromDistributor, chanend fromCheckPause, chanend fromCheckPause){
     uchar worldSeg[IMWD][segHeight];
     uchar worldSeg2[IMWD][segHeight];
     printf("workerID%i\n",workerID);
@@ -292,7 +292,7 @@ void checkPaused(int orientation, chanend toWorkers){
 // Initialise and  read orientation, send first tilt event to channel
 //
 /////////////////////////////////////////////////////////////////////////////////////////
-void orientation( client interface i2c_master_if i2c, chanend toDist) {
+void orientation( client interface i2c_master_if i2c, chanend toDist, chanend pauseToWorkers) {
   i2c_regop_res_t result;
   char status_data = 0;
 
@@ -319,7 +319,7 @@ void orientation( client interface i2c_master_if i2c, chanend toDist) {
     //get new x-axis tilt value
     int x = read_acceleration(i2c, FXOS8700EQ_OUT_X_MSB);
 
-    checkPaused(x);
+    checkPaused(x, pauseToWorkers);
 
   }
 }
@@ -338,17 +338,18 @@ chan c_inIO, c_outIO, c_control;    //extend your channel definitions here
 chan c_workerToDist[workers];
 chan c_toLEDs;
 chan c_toButtonManager;
+chan c_pauseToWorkers;
 
 par {
     on tile[0] : i2c_master(i2c, 1, p_scl, p_sda, 10);   //server thread providing orientation data
-    on tile[0] : orientation(i2c[0],c_control);        //client thread reading orientation data
+    on tile[0] : orientation(i2c[0],c_control, c_pauseToWorkers);        //client thread reading orientation data
     on tile[0] : DataInStream(c_inIO);          //thread to read in a PGM image
     on tile[0] : DataOutStream(c_outIO);       //thread to write out a PGM image
     on tile[0] : distributor(c_inIO, c_outIO, c_control, c_workerToDist, c_toButtonManager);//thread to coordinate work on image
     on tile[0] : ledManager(leds, c_toLEDs);
     on tile[0] : buttonManager(buttons, c_toButtonManager);
     par (int i=0; i<workers; i++){
-        on tile[1] : worker(i, c_workerToDist[i]);
+        on tile[1] : worker(i, c_workerToDist[i], c_pauseToWorkers);
     }
   }
 
