@@ -1,22 +1,27 @@
-// COMS20001 - Cellular Automaton Farm - Initial Code Skeleton
-// (using the XMOS i2c accelerometer demo code)
+// COMS20001 - Game of Life in XC
+// Andrei Bogdan and Zack Dove
+// ab_____ and zd17646
 
+
+
+
+
+//TODO!!!!!
+//Change data in & out to not be concurrent - maybe
 #include <platform.h>
 #include <stdio.h>
 #include "pgmIO.h"
 #include "i2c.h"
 #include <xs1.h>
 
-#define  IMHT 16                  //image height
-#define  IMWD 16                  //image width
+#define  IMHT 128                  //image height
+#define  IMWD 128                  //image width
 
-#define workers 8
+#define workers 4
 
 #define segHeight (IMHT/workers)+2
 
 #define iterations 100
-
-
 
 typedef unsigned char uchar;      //using uchar as shorthand
 
@@ -44,11 +49,11 @@ on tile[0] : out port leds = XS1_PORT_4F;   //port for LEDs
 /////////////////////////////////////////////////////////////////////////////////////////
 //DISPLAYS an LED pattern
 int ledManager(out port p, chanend fromDistributor, chanend fromCheckPause) {
-  int pattern = 0; //1st bit...separate green LED : flashing while processing
-               //2nd bit...blue LED : on while exporting
-               //3rd bit...green LED : on while reading
-               //4th bit...red LED : on while paused
-  while (1) {
+    int pattern = 0;    //1st bit...separate green LED : flashing while processing
+                        //2nd bit...blue LED : on while exporting
+                        //3rd bit...green LED : on while reading
+                        //4th bit...red LED : on while paused
+    while (1) {
     select {
         case fromCheckPause :> pattern:
             p <: pattern;
@@ -57,20 +62,19 @@ int ledManager(out port p, chanend fromDistributor, chanend fromCheckPause) {
             p <: pattern;
             break;
     }
-  }
-  return 0;
+    }
+    return 0;
 }
 
 //READ BUTTONS and send button pattern to userAnt
 void buttonManager(in port b, chanend toDistributor) {
-
-  int r;
-  b when pinseq(14) :> r;
-  toDistributor <: 0; //number doesn't matter, dist is just waiting
-  while (1) {
-    b when pinseq(13)  :> r;
-    toDistributor <: r;             // send button pattern to userAnt
-  }
+    int r;
+    b when pinseq(14) :> r;
+    toDistributor <: 0; //number doesn't matter, dist is just waiting
+    while (1) {
+        b when pinseq(13)  :> r;
+        toDistributor <: r;             // send button pattern to userAnt
+    }
 }
 
 
@@ -78,7 +82,7 @@ int recievedExportSignal(chanend toLedManager, chanend fromButtonManager){
     int exportSignal;
     select {
         case fromButtonManager :> exportSignal: //If a signal is received, then export
-            printf("export signal= %i\n",exportSignal);
+            printf("export signal recieved.\n");
             toLedManager <: 2;
             return 1;
             break;
@@ -93,7 +97,7 @@ int recievedExportSignal(chanend toLedManager, chanend fromButtonManager){
 
 void DataInStream( chanend c_out)
 {
-  char infname[] = "test.pgm";
+  char infname[] = "128x128.pgm";
   int res;
   uchar line[ IMWD ];
   printf( "DataInStream: Start...\n" );
@@ -108,9 +112,7 @@ void DataInStream( chanend c_out)
     _readinline( line, IMWD );
     for( int x = 0; x < IMWD; x++ ) {
       c_out <: line[x];
-      //printf( "-%4.1d ", line[ x ] ); //show image values
     }
-    //printf( "\n" );
   }
   //Close PGM image file
   _closeinpgm();
@@ -137,7 +139,6 @@ int modulo(int x , int N){
 void worker(int workerID, chanend fromDistributor){
     uchar worldSeg[IMWD/8][segHeight];
     uchar resultByte = 0x00;
-    //printf("workerID%i\n",workerID);
     while(1){
         for (int y=0; y<segHeight; y++){
             for (int x = 0; x<IMWD/8; x++){
@@ -175,38 +176,28 @@ void worker(int workerID, chanend fromDistributor){
                         if (worldSeg[byte][y] & 1<<7-bit+1) fertility++;
                         if (worldSeg[byte][y+1] & 1<<7-bit+1) fertility++;
                     }
-                    //printf("fertility= %i\n", fertility);
                     if (worldSeg[byte][y] & (1 << (7-bit))){ //alive
                         if (fertility < 2) {
-                            //printf("dead1\n");
                             resultByte &= ~(1<<7-bit); //die
                         }
                         else if (fertility == 2 || fertility == 3) {
-                            //printf("alive1\n");
                             resultByte |= 1<<7-bit; //stay alive
                         }
                         else if (fertility > 3) {
-                            //printf("dead2\n");
                             resultByte &= ~(1<<7-bit); //die
                         }
                     } else { //dead
                         if (fertility == 3) {
-                            //printf("alive2\n");
                             resultByte |= 1<<7-bit;//come alive
                         }
                         else {
-                            //printf("dead3\n");
                             resultByte &= ~(1<<7-bit); //stay dead
                         }
                     }
-
                 }
                 fromDistributor <: resultByte;
             }
         }
-       // printf("c\n");
-
-        //printf("d\n");
     }
 }
 
@@ -223,20 +214,9 @@ void getAndPackWorld(uchar packedWorld[IMWD/8][IMHT], chanend c_in){
                 c_in :> pixel;
                 if (pixel == 0xFF) {
                     packedWorld[byte][y] |= 1<<7-bit;
-                    //printf("v1");
                 } else {
-                    //printf("v0");
                 }
             }
-            //printf("b=%i",packedWorld[byte][y]);
-        }
-    }
-}
-//can we remove this??
-void getUnpackedWorld(uchar unpackedWorld[IMWD][IMHT], chanend c_in){
-    for (int y = 0; y<IMHT; y++){
-        for (int x = 0; x<IMWD; x++){
-            c_in :> unpackedWorld[x][y];
         }
     }
 }
@@ -249,11 +229,9 @@ void unpackAndSendWorld(uchar packedWorld[IMWD/8][IMHT], chanend toPrint){
                 if (packedWorld[byte][y] & (1 << (7-bit))){
                     pixel = 0xFF;
                     toPrint <: pixel;
-                    //printf("w");
                 } else {
                     pixel = 0x00;
                     toPrint <: pixel;
-                    //printf("b");
                 }
             }
 
@@ -290,6 +268,68 @@ void dataOutStream(chanend c_in){
   }
 }
 
+int numberOfLiveCells(uchar packedWorld[IMWD/8][IMHT]){
+    int result = 0;
+    for (int y = 0; y<IMHT; y++){
+        for (int byte = 0; byte<IMWD/8; byte++){
+            for (int bit=0; bit<8; bit++){
+                if (packedWorld[byte][y] & (1 << (7-bit))){ //pixel is alive
+                    result++;
+                }
+            }
+        }
+    }
+    return result;
+}
+
+unsigned long fixTickOverflow(unsigned long ticks){
+    long result;
+    unsigned long maximumTicks = (2^32)-1;
+    if (ticks < 0) result = (unsigned long) (ticks + maximumTicks); //make it positive, no need to mod
+    else result = (unsigned long) (ticks % maximumTicks); //ticks is positive, but we need to mod it so it's not >max ticks
+    printf("fix overflow result = %lu\n", result);
+    return result;
+}
+
+double calculateIterationTime(unsigned long iterationStartTime, unsigned long iterationEndTime){
+    double ticksPerSecondMhz = XS1_TIMER_MHZ;
+    double ticksPerSecond = ticksPerSecondMhz * 1000000;
+    //printf("mhz=%ef, hz=%ef\n", ticksPerSecondMhz, ticksPerSecond);
+    double startTimeInSeconds = (double) fixTickOverflow(iterationStartTime)/ticksPerSecond;
+    printf("start time  in s= %ef\n", startTimeInSeconds);
+    double endTimeInSeconds = (double) fixTickOverflow(iterationEndTime)/ticksPerSecond;
+    printf("end time in s = %ef\n", endTimeInSeconds);
+    return (double)(endTimeInSeconds - startTimeInSeconds);
+}
+
+
+
+void timeManager(chanend toDistributor){
+    timer t;
+    unsigned int overflows = 0;
+    unsigned int time = 0;
+    unsigned int prevTime = 0;
+    unsigned int request = 0;
+    toDistributor :> int request; //Wait for start signal from distributor
+    while(1){
+        [[ordered]] //Gives the overflow check higher precedence than the distributor request
+        select {
+            case t when timerafter(time+20000) :> time : //Waits until time >= time+20000, then stores the new time
+                    if (time < prevTime) { //If time has gone backwards (due to overflow not a DeLorean)
+                        overflows ++; //Add 1 to the number of overflows
+                    }
+                    prevTime = time;
+                    break;
+            case toDistributor :> request : //If the distributor makes a request
+                toDistributor <: prevTime + overflows*UINT_MAX;
+                break;
+        }
+    }
+}
+
+unsigned int getSeconds(usnigned int time){
+
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -298,61 +338,65 @@ void dataOutStream(chanend c_in){
 // Currently the function just inverts the image
 //
 /////////////////////////////////////////////////////////////////////////////////////////
-void distributor(chanend c_in, chanend toPrint, chanend fromAcc, chanend toWorker[workers], chanend toButtonManager, chanend fromCheckPause, chanend toLedManager){
+void distributor(chanend c_in, chanend toPrint, chanend fromAcc, chanend toWorker[workers], chanend toButtonManager, chanend fromCheckPause, chanend toLedManager, chanend toTimeManager){
   //Starting up and wait for tilting of the xCore-200 Explorer
+
   printf( "ProcessImage: Start, size = %dx%d\n", IMWD, IMHT );
   printf( "Waiting for button press....\n" );
   getStartButtonPressed(toButtonManager);
   toLedManager <: 4;
-  printf( "Processing...\n" );
+  printf( "Reading in from the image...\n" );
   uchar packedWorld[IMWD/8][IMHT];
-  //printf("1\n");
   getAndPackWorld(packedWorld, c_in);
-  //getUnpackedWorld(unpackedWorld, c_in);
   toLedManager <: 1;
-  for (int iteration = 0; iteration<iterations; iteration++){
-      //printf("2\n");
+  unsigned int currentTime = 0;
+  toTimeManager <: 1; //Send start signal to time manager
+  for (int iteration = 0; iteration<=iterations; iteration++){
       for (int i = 0; i<workers; i++){
           int min =(i*IMHT/workers)-1; //used for the extra rows to be passed to workers
           int max =1+(i+1)*IMHT/workers;
-          //printf("i = %i , min = %i, max = %i\n",i,min,max );
+          //Send the world segments to the workers
           for (int y= min; y< max; y++){
               for (int x = 0; x < IMWD/8; x++){
                   toWorker[i] <: packedWorld[x][modulo(y,IMHT)];
               }
           }
       }
-     // printf("3\n");
-/////////////////////
+      //Recieve the world segments back from the workers
       for (int i = 0; i<workers; i++){
           for (int y = i*IMHT/workers; y<(i+1)*IMHT/workers; y++){
               for (int byte = 0; byte < IMWD/8; byte++){
-                  //toWorker[i] :> world2[byte][y];
                   toWorker[i] :> packedWorld[byte][y];
+
               }
           }
       }
-      fromCheckPause :> int checkPause; //if no signal is recieved, then pause, else continue
+      toTimeManager <: 1; //Send request
+      toTimeManager :> currentTime;
+      int isPaused;
+      fromCheckPause :> isPaused;
+      if (isPaused){
+          //red lighht, rounds, live cells and time elapsed
+          toLedManager <: 8; //Send red light
+          printf("Paused.\n");
+          printf("Current iteration = %i\n",iteration);
+          printf("Number of live cells = %i\n",numberOfLiveCells(packedWorld));
+          while (1){
+              fromCheckPause :> isPaused;
+              if (!isPaused) break;
+          }
+      }
       if (recievedExportSignal(toLedManager, toButtonManager)){
           //export
           unpackAndSendWorld(packedWorld, toPrint);
       }
-      //unpackAndSendWorld(packedWorld, toPrint);
       toLedManager <: iteration % 2;
-      //printf("9\n");
- ///////////////////
-      //copy world2 to world
-//      for( int y = 0; y < IMHT; y++ ) {   //go through all lines
-//            for( int byte = 0; byte < IMWD/8; byte++ ) { //go through each pixel per line
-//                unpackedWorld[byte][y] = world2[byte][y];
-//            }
-//      }
-      //unpackAndSendWorld(packedWorld, toPrint);
-      //printf("10\n");
-      printf("Round %i completed\n", iteration);
-      waitMoment();
+      //printf("Round %i completed\n", iteration);
   }
-  //printf( "\nOne processing round completed...\n" );
+  toTimeManager <: 1; //Send request
+  toTimeManager :> currentTime;
+  printf("%i iterations completed in %u ticks\n", iterations, currentTime);
+  printf( "\nProcessing complete...\n" );
 }
 
 
@@ -388,16 +432,17 @@ void orientation( client interface i2c_master_if i2c, chanend toDist, chanend pa
   }
   //Probe the orientation x-axis forever
   while (1) {
-
     //check until new orientation data is available
     do {
       status_data = i2c.read_reg(FXOS8700EQ_I2C_ADDR, FXOS8700EQ_DR_STATUS, result);
     } while (!status_data & 0x08);
-
     //get new x-axis tilt value
     int x = read_acceleration(i2c, FXOS8700EQ_OUT_X_MSB);
-
-    checkPaused(x, pauseToDistributor, c_pauseToLedManager);
+    if (x <= -50){
+        pauseToDistributor <: 1;
+    } else {
+        pauseToDistributor <: 0;
+    }
 
   }
 }
@@ -411,15 +456,16 @@ chan c_distributorToLedManager;
 chan c_toButtonManager;
 chan c_pauseToDistributor;
 chan c_pauseToLedManager;
-
+chan c_timerToDistributor;
 par {
     on tile[0] : i2c_master(i2c, 1, p_scl, p_sda, 10);   //server thread providing orientation data
     on tile[0] : orientation(i2c[0],c_control, c_pauseToDistributor, c_pauseToLedManager);        //client thread reading orientation data
     on tile[0] : DataInStream(c_inIO);          //thread to read in a PGM image
     on tile[0] : dataOutStream(c_outIO);       //thread to write out a PGM image
-    on tile[0] : distributor(c_inIO, c_outIO, c_control, c_workerToDist, c_toButtonManager, c_pauseToDistributor, c_distributorToLedManager);//thread to coordinate work on image
     on tile[0] : ledManager(leds, c_distributorToLedManager, c_pauseToLedManager);
     on tile[0] : buttonManager(buttons, c_toButtonManager);
+    on tile[0] : distributor(c_inIO, c_outIO, c_control, c_workerToDist, c_toButtonManager, c_pauseToDistributor, c_distributorToLedManager, c_timerToDistributor);//thread to coordinate work on image
+    on tile[0] : timeManager(c_timerToDistributor);
     par (int i=0; i<workers; i++){
         on tile[1] : worker(i, c_workerToDist[i]);
     }
