@@ -11,9 +11,10 @@
 #define  IMHT 16 //image height
 #define  IMWD 16 //image width
 #define workers 8 //The number of workers
-#define iterations 100 //The number of iterations to be completed
+#define iterations 10000 //The number of iterations to be completed
 #define alwaysExport 0 //Set to 1 to export every iteration
-#define alwaysPrint 0  //Set to 1 to print every iteraiton
+#define alwaysPrint 0  //Set to 1 to also print
+#define makeSlower 0 //Set to 1 to intentionally make the processing slower
 #define segHeight (IMHT/workers)+2 //The height of the segments to be send to the workers
 
 typedef unsigned char uchar; //Using uchar as shorthand
@@ -38,7 +39,7 @@ on tile[0] : out port leds = XS1_PORT_4F;   //Port for LEDs
 //Reads in from the .pgm file then packs 8 pixels into a single byte
 void getAndPackWorld(uchar packedWorld[IMWD/8][IMHT]){
     uchar pixel;
-    char infname[] = "16x16.pgm";
+    char infname[] = "16x16e.pgm";
     int res;
     uchar line[ IMWD ];
     printf( "DataInStream: Start...\n" );
@@ -49,7 +50,7 @@ void getAndPackWorld(uchar packedWorld[IMWD/8][IMHT]){
         return;
     }
     //Read image line-by-line and send byte by byte to channel c_out
-    printf("DataInStream ready to read in from %s\n", infname);
+    printf("DataInStream reading in from %s\n", infname);
     for (int y = 0; y<IMHT; y++){
         _readinline( line, IMWD );
         for (int byte = 0; byte<IMWD/8; byte++){
@@ -59,18 +60,21 @@ void getAndPackWorld(uchar packedWorld[IMWD/8][IMHT]){
                 //printf("bit = %i\n", bit);
                 //printf("byte+bit = %i\n", byte+bit);
                 pixel = line[byte*8+bit];
-                printf( "-%4.1d ", pixel);
+                if (alwaysPrint){
+                    printf( "-%4.1d ", pixel);
+                }
                 if (pixel == 0xFF) {
                     packedWorld[byte][y] |= 1<<7-bit;
                 } else {
                 }
             }
         }
-        printf("\n");
+        if (alwaysPrint){
+            printf("\n");
+        }
     }
     printf("Completed reading in from %s\n", infname);
     _closeinpgm();
-    printf( "DataInStream: Done...\n" );
 }
 
 //DISPLAYS an LED pattern
@@ -199,6 +203,9 @@ void worker(int workerID, chanend fromDistributor){
                 fromDistributor <: resultByte;
             }
         }
+        if (makeSlower){
+            waitMoment();
+        }
     }
 }
 
@@ -231,7 +238,7 @@ void unpackAndSendWorld(uchar packedWorld[IMWD/8][IMHT], chanend toExport){
 void dataOutStream(chanend c_in){
   uchar line[IMWD];
   int res;
-  for(int i = 1;; i++){
+  for(int i = 0;; i++){
       //Compile each line of the image and write the image line-by-line
       int length = snprintf( NULL, 0, "%d", i ) + snprintf(NULL, 0, "%s", ".pgm");
       char* outfname = malloc( length + 1 );
@@ -249,9 +256,8 @@ void dataOutStream(chanend c_in){
                   printf( "-%4.1d ", line[x]); //Print to screen
               }
           }
-          if (alwaysExport){
-              _writeoutline( line, IMWD ); //Write to file
-          }
+          printf("Exporting to %s\n", outfname);
+          _writeoutline( line, IMWD ); //Write to file
           if (alwaysPrint){
               printf("\n"); //End of line
           }
@@ -300,8 +306,8 @@ void timeManager(chanend toDistributor){
 }
 
 //Converts ticks to seconds
-double ticksToSeconds(unsigned int ticks){
-    double useconds = ticks / (double)XS1_TIMER_MHZ;
+double ticksToSeconds(unsigned int ticks, unsigned int overflows){
+    double useconds = ((double) ticks + (double) overflows*UINT_MAX)/ (double)XS1_TIMER_MHZ;
     double mseconds = useconds / 1000;
     double seconds  = mseconds / 1000;
     return seconds;
@@ -318,8 +324,11 @@ void distributor(chanend toPrint, chanend fromAcc, chanend toWorker[workers], ch
   uchar packedWorld[IMWD/8][IMHT];
   getAndPackWorld(packedWorld);
   toLedManager <: 1;
+  unsigned int prevTime = 0;
   unsigned int currentTime = 0;
+  unsigned int overflows = 0;
   unsigned int startTime = 0;
+  printf("Beginning processing...\n");
   toTimeManager <: 1; //Send start signal to time manager
   toTimeManager :> startTime;
   for (int iteration = 0; iteration<=iterations; iteration++){
@@ -344,6 +353,10 @@ void distributor(chanend toPrint, chanend fromAcc, chanend toWorker[workers], ch
       }
       toTimeManager <: 1; //Send request
       toTimeManager :> currentTime;
+      if (currentTime < prevTime){
+          overflows++;
+      }
+      prevTime = currentTime;
       int isPaused;
       fromCheckPause :> isPaused;
       if (isPaused){
@@ -353,7 +366,7 @@ void distributor(chanend toPrint, chanend fromAcc, chanend toWorker[workers], ch
           printf("Current iteration = %i\n",iteration);
           printf("Number of live cells = %i\n",numberOfLiveCells(packedWorld));
           unsigned int ticksTaken = currentTime - startTime;
-          double timeTakenS = ticksToSeconds(ticksTaken);
+          double timeTakenS = ticksToSeconds(ticksTaken, overflows);
           printf("%i iterations completed in %u ticks or %f seconds\n", iteration, ticksTaken, timeTakenS);
           while (1){
               fromCheckPause :> isPaused;
@@ -369,8 +382,11 @@ void distributor(chanend toPrint, chanend fromAcc, chanend toWorker[workers], ch
   }
   toTimeManager <: 1; //Send request
   toTimeManager :> currentTime;
+  if (currentTime < prevTime){
+      overflows++;
+  }
   unsigned int ticksTaken = currentTime - startTime;
-  double timeTakenS = ticksToSeconds(ticksTaken);
+  double timeTakenS = ticksToSeconds(ticksTaken, overflows);
   printf("%i iterations completed in %u ticks or %f seconds\n", iterations, ticksTaken, timeTakenS);
   printf("Mean time taken per iteration = %f\n", timeTakenS/iterations);
   printf( "\nProcessing complete...\n" );
