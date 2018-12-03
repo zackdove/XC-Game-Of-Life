@@ -14,8 +14,8 @@
 #include "i2c.h"
 #include <xs1.h>
 
-#define  IMHT 128                  //image height
-#define  IMWD 128                  //image width
+#define  IMHT 256                  //image height
+#define  IMWD 256                  //image width
 
 #define workers 4
 
@@ -97,7 +97,7 @@ int recievedExportSignal(chanend toLedManager, chanend fromButtonManager){
 
 void DataInStream( chanend c_out)
 {
-  char infname[] = "128x128.pgm";
+  char infname[] = "256x256.pgm";
   int res;
   uchar line[ IMWD ];
   printf( "DataInStream: Start...\n" );
@@ -108,12 +108,14 @@ void DataInStream( chanend c_out)
     return;
   }
   //Read image line-by-line and send byte by byte to channel c_out
+  printf("DataInStream ready to read in from %s\n", infname);
   for( int y = 0; y < IMHT; y++ ) {
     _readinline( line, IMWD );
     for( int x = 0; x < IMWD; x++ ) {
       c_out <: line[x];
     }
   }
+  printf("Completed reading in from %s\n", infname);
   //Close PGM image file
   _closeinpgm();
   printf( "DataInStream: Done...\n" );
@@ -305,18 +307,17 @@ double calculateIterationTime(unsigned long iterationStartTime, unsigned long it
 
 
 void timeManager(chanend toDistributor){
-    timer t;
     unsigned int overflows = 0;
     unsigned int time = 0;
     unsigned int prevTime = 0;
     unsigned int request = 0;
-    toDistributor :> int request; //Wait for start signal from distributor
+    timer t;
     while(1){
-        [[ordered]] //Gives the overflow check higher precedence than the distributor request
+        //[[ordered]] //Gives the overflow check higher precedence than the distributor request
         select {
             case t when timerafter(time+20000) :> time : //Waits until time >= time+20000, then stores the new time
                     if (time < prevTime) { //If time has gone backwards (due to overflow not a DeLorean)
-                        overflows ++; //Add 1 to the number of overflows
+                        overflows++; //Add 1 to the number of overflows
                     }
                     prevTime = time;
                     break;
@@ -327,8 +328,11 @@ void timeManager(chanend toDistributor){
     }
 }
 
-unsigned int getSeconds(usnigned int time){
-
+double ticksToSeconds(unsigned int ticks){
+    double useconds = ticks / (double)XS1_TIMER_MHZ;
+    double mseconds = useconds / 1000;
+    double seconds  = mseconds / 1000;
+    return seconds;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -344,13 +348,15 @@ void distributor(chanend c_in, chanend toPrint, chanend fromAcc, chanend toWorke
   printf( "ProcessImage: Start, size = %dx%d\n", IMWD, IMHT );
   printf( "Waiting for button press....\n" );
   getStartButtonPressed(toButtonManager);
+  printf("Start button pressed, now reading in...\n");
   toLedManager <: 4;
-  printf( "Reading in from the image...\n" );
   uchar packedWorld[IMWD/8][IMHT];
   getAndPackWorld(packedWorld, c_in);
   toLedManager <: 1;
   unsigned int currentTime = 0;
+  unsigned int startTime = 0;
   toTimeManager <: 1; //Send start signal to time manager
+  toTimeManager :> startTime;
   for (int iteration = 0; iteration<=iterations; iteration++){
       for (int i = 0; i<workers; i++){
           int min =(i*IMHT/workers)-1; //used for the extra rows to be passed to workers
@@ -395,7 +401,10 @@ void distributor(chanend c_in, chanend toPrint, chanend fromAcc, chanend toWorke
   }
   toTimeManager <: 1; //Send request
   toTimeManager :> currentTime;
-  printf("%i iterations completed in %u ticks\n", iterations, currentTime);
+  unsigned int ticksTaken = currentTime - startTime;
+  double timeTakenS = ticksToSeconds(ticksTaken);
+  printf("%i iterations completed in %u ticks or %f seconds\n", iterations, ticksTaken, timeTakenS);
+  printf("Mean time taken per iteration = %f\n", timeTakenS/iterations);
   printf( "\nProcessing complete...\n" );
 }
 
