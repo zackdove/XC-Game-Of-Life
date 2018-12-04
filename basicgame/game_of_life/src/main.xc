@@ -8,10 +8,10 @@
 #include "i2c.h"
 #include <xs1.h>
 
-#define  IMHT 16 //image height
-#define  IMWD 16 //image width
+#define  IMHT 512   //image height
+#define  IMWD 512 //image width
 #define workers 8 //The number of workers
-#define iterations 10000 //The number of iterations to be completed
+#define iterations 100 //The number of iterations to be completed
 #define alwaysExport 0 //Set to 1 to export every iteration
 #define alwaysPrint 0  //Set to 1 to also print
 #define makeSlower 0 //Set to 1 to intentionally make the processing slower
@@ -39,7 +39,7 @@ on tile[0] : out port leds = XS1_PORT_4F;   //Port for LEDs
 //Reads in from the .pgm file then packs 8 pixels into a single byte
 void getAndPackWorld(uchar packedWorld[IMWD/8][IMHT]){
     uchar pixel;
-    char infname[] = "16x16e.pgm";
+    char infname[] = "512x512d.pgm";
     int res;
     uchar line[ IMWD ];
     printf( "DataInStream: Start...\n" );
@@ -322,13 +322,13 @@ void distributor(chanend toPrint, chanend fromAcc, chanend toWorker[workers], ch
   printf("Start button pressed, now reading in...\n");
   toLedManager <: 4;
   uchar packedWorld[IMWD/8][IMHT];
-  getAndPackWorld(packedWorld);
+  //getAndPackWorld(packedWorld);
   toLedManager <: 1;
   unsigned int prevTime = 0;
   unsigned int currentTime = 0;
   unsigned int overflows = 0;
   unsigned int startTime = 0;
-  printf("Beginning processing...\n");
+  printf("Processing...\n");
   toTimeManager <: 1; //Send start signal to time manager
   toTimeManager :> startTime;
   for (int iteration = 0; iteration<=iterations; iteration++){
