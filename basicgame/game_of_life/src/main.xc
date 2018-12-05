@@ -8,8 +8,8 @@
 #include "i2c.h"
 #include <xs1.h>
 
-#define  IMHT 512   //image height
-#define  IMWD 512 //image width
+#define  IMHT 1024   //image height
+#define  IMWD 1024 //image width
 #define workers 8 //The number of workers
 #define iterations 100 //The number of iterations to be completed
 #define alwaysExport 0 //Set to 1 to export every iteration
@@ -39,7 +39,7 @@ on tile[0] : out port leds = XS1_PORT_4F;   //Port for LEDs
 //Reads in from the .pgm file then packs 8 pixels into a single byte
 void getAndPackWorld(uchar packedWorld[IMWD/8][IMHT]){
     uchar pixel;
-    char infname[] = "512x512d.pgm";
+    char infname[] = "1024x1024d.pgm";
     int res;
     uchar line[ IMWD ];
     printf( "DataInStream: Start...\n" );
@@ -215,8 +215,9 @@ void getStartButtonPressed(chanend toButtonManager){
 
 
 //Unpacks the pixels, and sends to DataStreamOut
-void unpackAndSendWorld(uchar packedWorld[IMWD/8][IMHT], chanend toExport){
+void unpackAndSendWorld(uchar packedWorld[IMWD/8][IMHT], chanend toExport, int iteration){
     uchar pixel;
+    toExport <: iteration;
     for (int y = 0; y<IMHT; y++){
         for (int byte = 0; byte<IMWD/8; byte++){
             for (int bit=0; bit<8; bit++){
@@ -238,17 +239,20 @@ void unpackAndSendWorld(uchar packedWorld[IMWD/8][IMHT], chanend toExport){
 void dataOutStream(chanend c_in){
   uchar line[IMWD];
   int res;
-  for(int i = 0;; i++){
+  int iteration;
+  while(1){
       //Compile each line of the image and write the image line-by-line
-      int length = snprintf( NULL, 0, "%d", i ) + snprintf(NULL, 0, "%s", ".pgm");
+      c_in :> iteration;
+      int length = snprintf( NULL, 0, "%d", iteration ) + snprintf(NULL, 0, "%s", ".pgm");
       char* outfname = malloc( length + 1 );
-      snprintf( outfname, length + 1, "%d", i );
+      snprintf( outfname, length + 1, "%d", iteration );
       strcat(outfname, ".pgm");
       res = _openoutpgm( outfname, IMWD, IMHT );
       if (res){
           printf( "DataOutStream: Error opening %s\n.", outfname );
           return;
       }
+      printf("Exporting to %s\n", outfname);
       for( int y = 0; y < IMHT; y++ ) {
           for(int x = 0; x < IMWD; x++ ) {
               c_in :> line[x];
@@ -256,7 +260,7 @@ void dataOutStream(chanend c_in){
                   printf( "-%4.1d ", line[x]); //Print to screen
               }
           }
-          printf("Exporting to %s\n", outfname);
+
           _writeoutline( line, IMWD ); //Write to file
           if (alwaysPrint){
               printf("\n"); //End of line
@@ -322,7 +326,7 @@ void distributor(chanend toPrint, chanend fromAcc, chanend toWorker[workers], ch
   printf("Start button pressed, now reading in...\n");
   toLedManager <: 4;
   uchar packedWorld[IMWD/8][IMHT];
-  //getAndPackWorld(packedWorld);
+  getAndPackWorld(packedWorld);
   toLedManager <: 1;
   unsigned int prevTime = 0;
   unsigned int currentTime = 0;
@@ -331,7 +335,7 @@ void distributor(chanend toPrint, chanend fromAcc, chanend toWorker[workers], ch
   printf("Processing...\n");
   toTimeManager <: 1; //Send start signal to time manager
   toTimeManager :> startTime;
-  for (int iteration = 0; iteration<=iterations; iteration++){
+  for (int iteration = 1; iteration<=iterations; iteration++){
       for (int i = 0; i<workers; i++){
           int min =(i*IMHT/workers)-1; //Used for the extra rows to be passed to workers
           int max =1+(i+1)*IMHT/workers;
@@ -373,9 +377,9 @@ void distributor(chanend toPrint, chanend fromAcc, chanend toWorker[workers], ch
               if (!isPaused) break;
           }
       }
-      if (recievedExportSignal(toLedManager, toButtonManager) || alwaysExport || alwaysPrint){
+      if (recievedExportSignal(toLedManager, toButtonManager) || alwaysExport || alwaysPrint || iteration==iterations){
           //Export
-          unpackAndSendWorld(packedWorld, toPrint);
+          unpackAndSendWorld(packedWorld, toPrint, iteration);
       }
       toLedManager <: iteration % 2;
       //printf("Round %i completed\n", iteration);
