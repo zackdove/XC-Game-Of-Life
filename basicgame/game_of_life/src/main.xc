@@ -46,7 +46,7 @@ on tile[0] : out port leds = XS1_PORT_4F;   //Port for LEDs
 //Reads in from the .pgm file then packs 8 pixels into a single byte
 void getAndPackWorld(uchar packedWorld[IMWD/8][IMHT]){
     uchar pixel;
-    char infname[] = "128x128e.pgm";
+    char infname[] = "64x64e.pgm";
     int res;
     uchar line[ IMWD ];
     printf( "DataInStream: Start...\n" );
@@ -384,9 +384,9 @@ void distributor(chanend toPrint, chanend fromAcc, async chanend toWorker[worker
               if (!isPaused) break;
           }
       }
-      if (recievedExportSignal(toLedManager, toButtonManager) || alwaysExport || alwaysPrint ){
+      if (recievedExportSignal(toLedManager, toButtonManager) || alwaysExport || alwaysPrint){
           //Export
-          //unpackAndSendWorld(packedWorld, toPrint, iteration);
+          unpackAndSendWorld(packedWorld, toPrint, iteration);
       }
       toLedManager <: iteration % 2;
       //printf("Round %i completed\n", iteration);
