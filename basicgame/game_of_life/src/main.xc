@@ -8,14 +8,21 @@
 #include "i2c.h"
 #include <xs1.h>
 
-#define  IMHT 16   //image height
-#define  IMWD 16 //image width
-#define workers 8 //The number of workers
+#define  IMHT 64  //image height
+#define  IMWD 64   //image width
+
+#if(IMHT<128)      // macro dynamic allocation of workers
+    #define workers 4
+#else
+    #define workers 8
+#endif
+
 #define iterations 100 //The number of iterations to be completed
 #define alwaysExport 0 //Set to 1 to export every iteration
 #define alwaysPrint 0  //Set to 1 to also print
 #define makeSlower 0 //Set to 1 to intentionally make the processing slower
 #define segHeight (IMHT/workers)+2 //The height of the segments to be send to the workers
+#define async //streaming //set for asynchronous channel communication
 
 typedef unsigned char uchar; //Using uchar as shorthand
 
@@ -39,7 +46,7 @@ on tile[0] : out port leds = XS1_PORT_4F;   //Port for LEDs
 //Reads in from the .pgm file then packs 8 pixels into a single byte
 void getAndPackWorld(uchar packedWorld[IMWD/8][IMHT]){
     uchar pixel;
-    char infname[] = "16x16e.pgm";
+    char infname[] = "128x128e.pgm";
     int res;
     uchar line[ IMWD ];
     printf( "DataInStream: Start...\n" );
@@ -141,7 +148,7 @@ int modulo(int x , int N){
 }
 
 //Worker function that carries out the game of life logic on a segment of the world
-void worker(int workerID, chanend fromDistributor){
+void worker(int workerID, async chanend fromDistributor){
     uchar worldSeg[IMWD/8][segHeight];
     uchar resultByte = 0x00;
     while(1){
@@ -319,7 +326,7 @@ double ticksToSeconds(unsigned int ticks, unsigned int overflows){
 
 
 //Sends segments of the world to the workers threads, and then recieves the processed segments back
-void distributor(chanend toPrint, chanend fromAcc, chanend toWorker[workers], chanend toButtonManager, chanend fromCheckPause, chanend toLedManager, chanend toTimeManager){
+void distributor(chanend toPrint, chanend fromAcc, async chanend toWorker[workers], chanend toButtonManager, chanend fromCheckPause, chanend toLedManager, chanend toTimeManager){
   printf( "ProcessImage: Start, size = %dx%d\n", IMWD, IMHT );
   printf( "Waiting for button press....\n" );
   getStartButtonPressed(toButtonManager);
@@ -377,9 +384,9 @@ void distributor(chanend toPrint, chanend fromAcc, chanend toWorker[workers], ch
               if (!isPaused) break;
           }
       }
-      if (recievedExportSignal(toLedManager, toButtonManager) || alwaysExport || alwaysPrint || iteration==iterations){
+      if (recievedExportSignal(toLedManager, toButtonManager) || alwaysExport || alwaysPrint ){
           //Export
-          unpackAndSendWorld(packedWorld, toPrint, iteration);
+          //unpackAndSendWorld(packedWorld, toPrint, iteration);
       }
       toLedManager <: iteration % 2;
       //printf("Round %i completed\n", iteration);
@@ -443,7 +450,7 @@ void orientation( client interface i2c_master_if i2c, chanend toDist, chanend pa
 int main(void) {
 i2c_master_if i2c[1];               //interface to orientation
 chan c_outIO, c_control;    //extend your channel definitions here
-chan c_workerToDist[workers];
+async chan c_workerToDist[workers];
 chan c_distributorToLedManager;
 chan c_toButtonManager;
 chan c_pauseToDistributor;
