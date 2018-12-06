@@ -8,9 +8,15 @@
 #include "i2c.h"
 #include <xs1.h>
 
-#define  IMHT 128  //image height
-#define  IMWD 128   //image width
-#define workers 8 //The number of workers
+#define  IMHT 64  //image height
+#define  IMWD 64   //image width
+
+#if(IMHT<128)      // macro dynamic allocation of workers
+    #define workers 4
+#else
+    #define workers 8
+#endif
+
 #define iterations 100 //The number of iterations to be completed
 #define alwaysExport 0 //Set to 1 to export every iteration
 #define alwaysPrint 0  //Set to 1 to also print
@@ -40,7 +46,7 @@ on tile[0] : out port leds = XS1_PORT_4F;   //Port for LEDs
 //Reads in from the .pgm file then packs 8 pixels into a single byte
 void getAndPackWorld(uchar packedWorld[IMWD/8][IMHT]){
     uchar pixel;
-    char infname[] = "128x128b.pgm";
+    char infname[] = "128x128e.pgm";
     int res;
     uchar line[ IMWD ];
     printf( "DataInStream: Start...\n" );
