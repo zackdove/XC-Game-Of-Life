@@ -8,8 +8,8 @@
 #include "i2c.h"
 #include <xs1.h>
 
-#define  IMHT 1024   //image height
-#define  IMWD 1024 //image width
+#define  IMHT 16   //image height
+#define  IMWD 16 //image width
 #define workers 8 //The number of workers
 #define iterations 100 //The number of iterations to be completed
 #define alwaysExport 0 //Set to 1 to export every iteration
@@ -39,7 +39,7 @@ on tile[0] : out port leds = XS1_PORT_4F;   //Port for LEDs
 //Reads in from the .pgm file then packs 8 pixels into a single byte
 void getAndPackWorld(uchar packedWorld[IMWD/8][IMHT]){
     uchar pixel;
-    char infname[] = "1024x1024d.pgm";
+    char infname[] = "16x16e.pgm";
     int res;
     uchar line[ IMWD ];
     printf( "DataInStream: Start...\n" );
@@ -392,7 +392,7 @@ void distributor(chanend toPrint, chanend fromAcc, chanend toWorker[workers], ch
   unsigned int ticksTaken = currentTime - startTime;
   double timeTakenS = ticksToSeconds(ticksTaken, overflows);
   printf("%i iterations completed in %u ticks or %f seconds\n", iterations, ticksTaken, timeTakenS);
-  printf("Mean time taken per iteration = %f\n", timeTakenS/iterations);
+  printf("Mean time taken per iteration = %f seconds\n", timeTakenS/iterations);
   printf( "\nProcessing complete...\n" );
 }
 
